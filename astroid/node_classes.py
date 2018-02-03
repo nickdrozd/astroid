@@ -412,8 +412,6 @@ class NodeNG(object):
         :returns: The first parent statement.
         :rtype: NodeNG
         """
-        if self.is_statement:
-            return self
         return self.parent.statement()
 
     def frame(self):
@@ -897,6 +895,9 @@ class Statement(NodeNG):
         if index >= 1:
             return stmts[index -1]
         return None
+
+    def statement(self):
+        return self
 
 @six.add_metaclass(abc.ABCMeta)
 class _BaseContainer(mixins.ParentAssignTypeMixin,
