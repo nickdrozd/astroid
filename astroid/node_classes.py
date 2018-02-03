@@ -223,6 +223,11 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_assignname = False
+    """Whether this node indicates an assign name.
+
+    :type: bool
+    """
     # Attributes below are set by the builder module or by raw factories
     lineno = None
     """The line that this node appears on in the source code.
@@ -1125,7 +1130,7 @@ class LookupMixIn(object):
                 if not (optional_assign or are_exclusive(_stmts[pindex], node)):
                     del _stmt_parents[pindex]
                     del _stmts[pindex]
-            if isinstance(node, AssignName):
+            if node.is_assignname:
                 if not optional_assign and stmt.parent is mystmt.parent:
                     _stmts = []
                     _stmt_parents = []
@@ -1156,6 +1161,8 @@ class AssignName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     'variable'
     """
     _other_fields = ('name',)
+
+    is_assignname = True
 
     def __init__(self, name=None, lineno=None, col_offset=None, parent=None):
         """
