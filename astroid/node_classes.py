@@ -228,6 +228,11 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_assign = False
+    """Whether this node indicates an assign.
+
+    :type: bool
+    """
     # Attributes below are set by the builder module or by raw factories
     lineno = None
     """The line that this node appears on in the source code.
@@ -650,6 +655,14 @@ class NodeNG(object):
             if isinstance(child_node, skip_klass):
                 continue
             for matching in child_node.nodes_of_class(klass, skip_klass):
+                yield matching
+
+    def assign_nodes(self):
+        if self.is_assign:
+            yield self
+
+        for child_node in self.get_children():
+            for matching in child_node.assign_nodes():
                 yield matching
 
     def _infer_name(self, frame, name):
@@ -1668,6 +1681,7 @@ class Assign(mixins.AssignTypeMixin, Statement):
 
     :type: NodeNG or None
     """
+    is_assign = True
 
     def postinit(self, targets=None, value=None):
         """Do some setup after initialisation.

@@ -1305,7 +1305,7 @@ class FunctionDef(node_classes.Statement, Lambda):
             return []
 
         decorators = []
-        for assign in frame.nodes_of_class(node_classes.Assign):
+        for assign in frame.assign_nodes():
             if (isinstance(assign.value, node_classes.Call)
                     and isinstance(assign.value.func, node_classes.Name)):
                 for assign_node in assign.targets:
