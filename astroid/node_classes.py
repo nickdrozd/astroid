@@ -233,6 +233,11 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_return = False
+    """Whether this nodes indicates a return.
+
+    :type: bool
+    """
     # Attributes below are set by the builder module or by raw factories
     lineno = None
     """The line that this node appears on in the source code.
@@ -663,6 +668,16 @@ class NodeNG(object):
 
         for child_node in self.get_children():
             for matching in child_node.assign_nodes():
+                yield matching
+
+    def return_nodes(self):
+        if self.is_return:
+            yield self
+
+        for child_node in self.get_children():
+            if child_node.is_function:
+                continue
+            for matching in child_node.return_nodes():
                 yield matching
 
     def _infer_name(self, frame, name):
@@ -3515,6 +3530,7 @@ class Return(Statement):
 
     :type: NodeNG or None
     """
+    is_return = True
 
     def postinit(self, value=None):
         """Do some setup after initialisation.

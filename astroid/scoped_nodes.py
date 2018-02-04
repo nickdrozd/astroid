@@ -1555,8 +1555,7 @@ class FunctionDef(node_classes.Statement, Lambda):
                 c._metaclass = metaclass
                 yield c
                 return
-        returns = self.nodes_of_class(node_classes.Return, skip_klass=FunctionDef)
-        for returnnode in returns:
+        for returnnode in self.return_nodes():
             if returnnode.value is None:
                 yield node_classes.Const(None)
             else:
