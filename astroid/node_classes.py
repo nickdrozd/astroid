@@ -319,7 +319,13 @@ class NodeNG(object):
         :returns: The nice name.
         :rtype: str
         """
-        return getattr(self, 'name', getattr(self, 'attrname', ''))
+        try:
+            return self.name
+        except AttributeError:
+            try:
+                return self.attrname
+            except AttributeError:
+                return ''
 
     def __str__(self):
         rname = self._repr_name()
