@@ -985,6 +985,16 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
 
         super(_BaseContainer, self).__init__(lineno, col_offset, parent)
 
+    def get_children(self):
+        elts = self.elts
+
+        if elts is not None:
+            if isinstance(elts, (list, tuple)):
+                for elt in elts:
+                    yield elt
+            else:
+                yield elts
+
     def postinit(self, elts):
         """Do some setup after initialisation.
 
@@ -1660,6 +1670,16 @@ class AssignAttr(mixins.ParentAssignTypeMixin, NodeNG):
         """
         self.expr = expr
 
+    def get_children(self):
+        expr = self.expr
+
+        if expr is not None:
+            if isinstance(expr, (list, tuple)):
+                for elt in expr:
+                    yield elt
+            else:
+                yield expr
+
 
 class Assert(Statement):
     """Class representing an :class:`ast.Assert` node.
@@ -1729,6 +1749,23 @@ class Assign(mixins.AssignTypeMixin, Statement):
         """
         self.targets = targets
         self.value = value
+
+    def get_children(self):
+        targets, value = self.targets, self.value
+
+        if targets is not None:
+            if isinstance(targets, (list, tuple)):
+                for elt in targets:
+                    yield elt
+            else:
+                yield targets
+
+        if value is not None:
+            if isinstance(value, (list, tuple)):
+                for elt in value:
+                    yield elt
+            else:
+                yield value
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -1950,6 +1987,23 @@ class BinOp(NodeNG):
         self.left = left
         self.right = right
 
+    def get_children(self):
+        left, right = self.left, self.right
+
+        if left is not None:
+            if isinstance(left, (list, tuple)):
+                for elt in left:
+                    yield elt
+            else:
+                yield left
+
+        if right is not None:
+            if isinstance(right, (list, tuple)):
+                for elt in right:
+                    yield elt
+            else:
+                yield right
+
     # This is set by inference.py
     def _infer_binop(self, context=None):
         raise NotImplementedError
@@ -2089,6 +2143,29 @@ class Call(NodeNG):
         keywords = self.keywords or []
         return [keyword for keyword in keywords if keyword.arg is None]
 
+    def get_children(self):
+        func, args, keywords = self.func, self.args, self.keywords
+
+        if func is not None:
+            if isinstance(func, (list, tuple)):
+                for elt in func:
+                    yield elt
+            else:
+                yield func
+
+        if args is not None:
+            if isinstance(args, (list, tuple)):
+                for elt in args:
+                    yield elt
+            else:
+                yield args
+
+        if keywords is not None:
+            if isinstance(keywords, (list, tuple)):
+                for elt in keywords:
+                    yield elt
+            else:
+                yield keywords
 
 class Compare(NodeNG):
     """Class representing an :class:`ast.Compare` node.
@@ -2658,6 +2735,16 @@ class Expr(Statement):
         """
         self.value = value
 
+    def get_children(self):
+        value = self.value
+
+        if value is not None:
+            if isinstance(value, (list, tuple)):
+                for elt in value:
+                    yield elt
+            else:
+                yield value
+
 
 class Ellipsis(NodeNG): # pylint: disable=redefined-builtin
     """Class representing an :class:`ast.Ellipsis` node.
@@ -3052,6 +3139,18 @@ class Attribute(NodeNG):
         """
         self.expr = expr
 
+    def get_children(self):
+        expr = self.expr
+
+        if expr is None:
+            return
+
+        if isinstance(expr, (list, tuple)):
+            for elt in expr:
+                yield elt
+        else:
+            yield expr
+
 
 class Global(Statement):
     """Class representing an :class:`ast.Global` node.
@@ -3154,6 +3253,30 @@ class If(mixins.BlockRangeMixIn, Statement):
         return self._elsed_block_range(lineno, self.orelse,
                                        self.body[0].fromlineno - 1)
 
+    def get_children(self):
+        test, body, orelse = self.test, self.body, self.orelse
+
+        if test is not None:
+            if isinstance(test, (list, tuple)):
+                for elt in test:
+                    yield elt
+            else:
+                yield test
+
+        if body is not None:
+            if isinstance(body, (list, tuple)):
+                for elt in body:
+                    yield elt
+            else:
+                yield body
+
+        if orelse is not None:
+            if isinstance(orelse, (list, tuple)):
+                for elt in orelse:
+                    yield elt
+            else:
+                yield orelse
+
 
 class IfExp(NodeNG):
     """Class representing an :class:`ast.IfExp` node.
@@ -3194,6 +3317,31 @@ class IfExp(NodeNG):
         self.test = test
         self.body = body
         self.orelse = orelse
+
+    def get_children(self):
+        test, body, orelse = self.test, self.body, self.orelse
+
+        if test is not None:
+            if isinstance(test, (list, tuple)):
+                for elt in test:
+                    yield elt
+            else:
+                yield test
+
+        if body is not None:
+            if isinstance(body, (list, tuple)):
+                for elt in body:
+                    yield elt
+            else:
+                yield body
+
+        if orelse is not None:
+            if isinstance(orelse, (list, tuple)):
+                for elt in orelse:
+                    yield elt
+            else:
+                yield orelse
+
 
 class Import(mixins.ImportFromMixin, Statement):
     """Class representing an :class:`ast.Import` node.
@@ -3522,6 +3670,23 @@ class Raise(Statement):
             self.exc = exc
             self.cause = cause
 
+        def get_children(self):
+            exc, cause = self.exc, self.cause
+
+            if exc is not None:
+                if isinstance(exc, (list, tuple)):
+                    for elt in exc:
+                        yield elt
+                else:
+                    yield exc
+
+            if cause is not None:
+                if isinstance(cause, (list, tuple)):
+                    for elt in cause:
+                        yield elt
+                else:
+                    yield cause
+
     def raises_not_implemented(self):
         """Check if this node raises a :class:`NotImplementedError`.
 
@@ -3559,6 +3724,16 @@ class Return(Statement):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_children(self):
+        value = self.value
+
+        if value is not None:
+            if isinstance(value, (list, tuple)):
+                for elt in value:
+                    yield elt
+            else:
+                yield value
 
 
 class Set(_BaseContainer):
@@ -3838,6 +4013,30 @@ class TryExcept(mixins.BlockRangeMixIn, Statement):
                 last = exhandler.body[0].fromlineno - 1
         return self._elsed_block_range(lineno, self.orelse, last)
 
+    def get_children(self):
+        body, handlers, orelse = self.body, self.handlers, self.orelse
+
+        if body is not None:
+            if isinstance(body, (list, tuple)):
+                for elt in body:
+                    yield elt
+            else:
+                yield body
+
+        if handlers is not None:
+            if isinstance(handlers, (list, tuple)):
+                for elt in handlers:
+                    yield elt
+            else:
+                yield handlers
+
+        if orelse is not None:
+            if isinstance(orelse, (list, tuple)):
+                for elt in orelse:
+                    yield elt
+            else:
+                yield orelse
+
 
 class TryFinally(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.TryFinally` node.
@@ -3961,6 +4160,16 @@ class UnaryOp(NodeNG):
     :type: NodeNG or None
     """
 
+    def get_children(self):
+        operand = self.operand
+
+        if operand is not None:
+            if isinstance(operand, (list, tuple)):
+                for elt in operand:
+                    yield elt
+            else:
+                yield operand
+
     def __init__(self, op=None, lineno=None, col_offset=None, parent=None):
         """
         :param op: The operator.
@@ -4075,6 +4284,30 @@ class While(mixins.BlockRangeMixIn, Statement):
         :rtype: tuple(int, int)
         """
         return self. _elsed_block_range(lineno, self.orelse)
+
+    def get_children(self):
+        test, body, orelse = self.test, self.body, self.orelse
+
+        if test is not None:
+            if isinstance(test, (list, tuple)):
+                for elt in test:
+                    yield elt
+            else:
+                yield test
+
+        if body is not None:
+            if isinstance(body, (list, tuple)):
+                for elt in body:
+                    yield elt
+            else:
+                yield body
+
+        if orelse is not None:
+            if isinstance(orelse, (list, tuple)):
+                for elt in orelse:
+                    yield elt
+            else:
+                yield orelse
 
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):

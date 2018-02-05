@@ -1207,6 +1207,39 @@ class FunctionDef(node_classes.Statement, Lambda):
     if six.PY3:
         _astroid_fields = ('decorators', 'args', 'returns', 'body')
         returns = None
+
+        def get_children(self):
+            decorators, args, returns, body = \
+                self.decorators, self.args, self.returns, self.body
+
+            if decorators is not None:
+                if isinstance(decorators, (list, tuple)):
+                    for elt in decorators:
+                        yield elt
+                else:
+                    yield decorators
+
+            if args is not None:
+                if isinstance(args, (list, tuple)):
+                    for elt in args:
+                        yield elt
+                else:
+                    yield args
+
+            if returns is not None:
+                if isinstance(returns, (list, tuple)):
+                    for elt in returns:
+                        yield elt
+                else:
+                    yield returns
+
+            if body is not None:
+                if isinstance(body, (list, tuple)):
+                    for elt in body:
+                        yield elt
+                else:
+                    yield body
+
     else:
         _astroid_fields = ('decorators', 'args', 'body')
     decorators = None
