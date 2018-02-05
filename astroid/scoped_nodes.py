@@ -1030,6 +1030,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
     _astroid_fields = ('args', 'body',)
     _other_other_fields = ('locals',)
     name = '<lambda>'
+    is_lambda = True
 
     # function's type, 'function' | 'method' | 'staticmethod' | 'classmethod'
     @property
@@ -1523,8 +1524,7 @@ class FunctionDef(node_classes.Statement, Lambda):
         :rtype: bool
         """
         yield_nodes = (node_classes.Yield, node_classes.YieldFrom)
-        return next(self.nodes_of_class(yield_nodes,
-                                        skip_klass=(FunctionDef, Lambda)), False)
+        return next(self.yield_nodes_skip_functions(), False)
 
     def infer_call_result(self, caller, context=None):
         """Infer what the function returns when called.

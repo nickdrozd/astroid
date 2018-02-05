@@ -223,6 +223,11 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_lambda = False
+    """Whether this node indicates a lambda.
+
+    :type: bool
+    """
     is_assignname = False
     """Whether this node indicates an assign name.
 
@@ -235,6 +240,11 @@ class NodeNG(object):
     """
     is_return = False
     """Whether this nodes indicates a return.
+
+    :type: bool
+    """
+    is_yield = False
+    """Wether this node indicates a yield.
 
     :type: bool
     """
@@ -678,6 +688,16 @@ class NodeNG(object):
             if child_node.is_function:
                 continue
             for matching in child_node.return_nodes():
+                yield matching
+
+    def yield_nodes_skip_functions(self):
+        if self.is_yield:
+            yield self
+
+        for child_node in self.get_children():
+            if child_node.is_function or child_node.is_lambda:
+                continue
+            for matching in child_node.yield_nodes_skip_functions():
                 yield matching
 
     def _infer_name(self, frame, name):
@@ -4131,6 +4151,7 @@ class Yield(NodeNG):
 
     :type: NodeNG or None
     """
+    is_yield = True
 
     def postinit(self, value=None):
         """Do some setup after initialisation.
@@ -4143,6 +4164,7 @@ class Yield(NodeNG):
 
 class YieldFrom(Yield):
     """Class representing an :class:`ast.YieldFrom` node."""
+    is_yield = True
 
 
 class DictUnpack(NodeNG):
