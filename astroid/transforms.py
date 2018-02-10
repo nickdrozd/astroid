@@ -42,14 +42,17 @@ class TransformVisitor(object):
         return node
 
     def _visit(self, node):
-        if hasattr(node, '_astroid_fields'):
-            for field in node._astroid_fields:
-                value = getattr(node, field)
-                visited = self._visit_generic(value)
-                setattr(node, field, visited)
+        for field in node._astroid_fields:
+            value = getattr(node, field)
+            visited = self._visit_generic(value)
+            setattr(node, field, visited)
+
         return self._transform(node)
 
     def _visit_generic(self, node):
+        if node is None or isinstance(node, str):
+            return node
+
         if isinstance(node, list):
             return [self._visit_generic(child) for child in node]
         if isinstance(node, tuple):
