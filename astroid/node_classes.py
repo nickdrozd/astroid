@@ -887,6 +887,12 @@ class NodeNG(object):
         """
         return util.Uninferable
 
+    def accept_visitor(self, visitor, generic):
+        for field in self._astroid_fields:
+            value = getattr(self, field)
+            visited = generic(value)
+            setattr(self, field, visited)
+
 
 class Statement(NodeNG):
     """Statement node adding a few attributes"""
@@ -1003,6 +1009,9 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
 
     def get_children(self):
         yield from self.elts
+
+    def accept_visitor(self, visitor, generic):
+        self.elts = [visitor(elt) for elt in self.elts]
 
 
 class LookupMixIn(object):
@@ -1219,6 +1228,9 @@ class AssignName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         yield from ()
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class DelName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     """Variation of :class:`ast.Delete` represention deletion of a name.
@@ -1308,6 +1320,9 @@ class Name(LookupMixIn, NodeNG):
         for child_node in self.get_children():
             for matching in child_node._get_name_nodes():
                 yield matching
+
+    def accept_visitor(self, visitor, generic):
+        pass
 
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
@@ -1574,6 +1589,19 @@ class Arguments(mixins.AssignTypeMixin, NodeNG):
             if elt is not None:
                 yield elt
 
+    def accept_visitor(self, visitor, generic):
+        if self.args is not None:
+            self.args = [visitor(elt) for elt in self.args]
+        self.defaults = [visitor(elt) for elt in self.defaults]
+        self.kwonlyargs = [visitor(elt) for elt in self.kwonlyargs]
+        self.kw_defaults = [visitor(elt) for elt in self.kw_defaults]
+        self.annotations = [visitor(elt) for elt in self.annotations]
+        self.kwonlyargs_annotations = \
+            [visitor(elt) for elt in self.kwonlyargs_annotations]
+
+        self.varargannotation = visitor(self.varargannotation)
+        self.kwargannotation = visitor(self.kwargannotation)
+
 
 def _find_arg(argname, args, rec=False):
     for i, arg in enumerate(args):
@@ -1664,6 +1692,9 @@ class AssignAttr(mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         yield self.expr
 
+    def accept_visitor(self, visitor, generic):
+        self.expr = visitor(self.expr)
+
 
 class Assert(Statement):
     """Class representing an :class:`ast.Assert` node.
@@ -1749,6 +1780,10 @@ class Assign(mixins.AssignTypeMixin, Statement):
 
         for matching in self.value._get_assign_nodes():
             yield matching
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
+        self.targets = [visitor(elt) for elt in self.targets]
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -1897,6 +1932,10 @@ class AugAssign(mixins.AssignTypeMixin, Statement):
         yield self.target
         yield self.value
 
+    def accept_visitor(self, visitor, generic):
+        self.target = visitor(self.target)
+        self.value = visitor(self.value)
+
 
 class Repr(NodeNG):
     """Class representing an :class:`ast.Repr` node.
@@ -2005,6 +2044,10 @@ class BinOp(NodeNG):
         yield self.left
         yield self.right
 
+    def accept_visitor(self, visitor, generic):
+        self.left = visitor(self.left)
+        self.right = visitor(self.right)
+
 
 class BoolOp(NodeNG):
     """Class representing an :class:`ast.BoolOp` node.
@@ -2057,6 +2100,9 @@ class BoolOp(NodeNG):
     def get_children(self):
         yield from self.values
 
+    def accept_visitor(self, visitor, generic):
+        self.values = [visitor(elt) for elt in self.values]
+
 
 class Break(Statement):
     """Class representing an :class:`ast.Break` node.
@@ -2068,6 +2114,9 @@ class Break(Statement):
 
     def get_children(self):
         yield from ()
+
+    def accept_visitor(self, visitor, generic):
+        ...
 
 
 class Call(NodeNG):
@@ -2137,6 +2186,14 @@ class Call(NodeNG):
 
         yield from self.keywords or ()
 
+    def accept_visitor(self, visitor, generic):
+        self.func = visitor(self.func)
+
+        self.args = [visitor(elt) for elt in self.args]
+
+        if self.keywords is not None:
+            self.keywords = [visitor(elt) for elt in self.keywords]
+
 
 class Compare(NodeNG):
     """Class representing an :class:`ast.Compare` node.
@@ -2197,6 +2254,14 @@ class Compare(NodeNG):
         # XXX maybe if self.ops:
         return self.ops[-1][1]
         #return self.left
+
+    def accept_visitor(self, visitor, generic):
+        self.left = visitor(self.left)
+
+        self.ops = [
+            (string, visitor(node))
+            for (string, node) in self.ops
+        ]
 
 
 class Comprehension(NodeNG):
@@ -2426,6 +2491,9 @@ class Const(NodeNG, bases.Instance):
     def get_children(self):
         yield from ()
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Continue(Statement):
     """Class representing an :class:`ast.Continue` node.
@@ -2481,6 +2549,9 @@ class Decorators(NodeNG):
 
     def get_children(self):
         yield from self.nodes
+
+    def accept_visitor(self, visitor, generic):
+        self.nodes = [visitor(elt) for elt in self.nodes]
 
 
 class DelAttr(mixins.ParentAssignTypeMixin, NodeNG):
@@ -2729,6 +2800,9 @@ class Expr(Statement):
         if not self.value.is_lambda:
             for matching in self.value._get_yield_nodes_skip_lambdas():
                 yield matching
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Ellipsis(NodeNG): # pylint: disable=redefined-builtin
@@ -3042,6 +3116,12 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
             for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
+    def accept_visitor(self, visitor, generic):
+        self.target = visitor(self.target)
+        self.iter = visitor(self.iter)
+        self.body = [visitor(elt) for elt in self.body]
+        self.orelse = [visitor(elt) for elt in self.orelse]
+
 
 class AsyncFor(For):
     """Class representing an :class:`ast.AsyncFor` node.
@@ -3159,6 +3239,9 @@ class ImportFrom(mixins.ImportFromMixin, Statement):
     def get_children(self):
         yield from ()
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Attribute(NodeNG):
     """Class representing an :class:`ast.Attribute` node."""
@@ -3203,6 +3286,9 @@ class Attribute(NodeNG):
 
     def get_children(self):
         yield self.expr
+
+    def accept_visitor(self, visitor, generic):
+        self.expr = visitor(self.expr)
 
 
 class Global(Statement):
@@ -3350,6 +3436,13 @@ class If(mixins.BlockRangeMixIn, Statement):
             for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+
+        self.body = [visitor(elt) for elt in self.body]
+
+        self.orelse = [visitor(elt) for elt in self.orelse]
+
 
 class IfExp(NodeNG):
     """Class representing an :class:`ast.IfExp` node.
@@ -3396,6 +3489,11 @@ class IfExp(NodeNG):
         yield self.body
         yield self.orelse
 
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+        self.body = visitor(self.body)
+        self.orelse = visitor(self.orelse)
+
 
 class Import(mixins.ImportFromMixin, Statement):
     """Class representing an :class:`ast.Import` node.
@@ -3435,6 +3533,9 @@ class Import(mixins.ImportFromMixin, Statement):
     def get_children(self):
         yield from ()
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Index(NodeNG):
     """Class representing an :class:`ast.Index` node.
@@ -3464,6 +3565,9 @@ class Index(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Keyword(NodeNG):
@@ -3516,6 +3620,9 @@ class Keyword(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class List(_BaseContainer):
@@ -3622,6 +3729,9 @@ class Pass(Statement):
 
     def get_children(self):
         yield from ()
+
+    def accept_visitor(self, visitor, generic):
+        pass
 
 
 class Print(Statement):
@@ -3731,6 +3841,13 @@ class Raise(Statement):
         if self.cause is not None:
             yield self.cause
 
+    def accept_visitor(self, visitor, generic):
+        if self.exc is not None:
+            self.exc = visitor(self.exc)
+
+        if self.cause is not None:
+            self.cause = visitor(self.cause)
+
 
 class Return(Statement):
     """Class representing an :class:`ast.Return` node.
@@ -3760,6 +3877,9 @@ class Return(Statement):
 
     def _get_return_nodes_skip_functions(self):
         yield self
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Set(_BaseContainer):
@@ -3986,6 +4106,10 @@ class Subscript(NodeNG):
     def get_children(self):
         yield self.value
         yield self.slice
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
+        self.slice = visitor(self.slice)
 
 
 class TryExcept(mixins.BlockRangeMixIn, Statement):
@@ -4313,6 +4437,9 @@ class UnaryOp(NodeNG):
     def get_children(self):
         yield self.operand
 
+    def accept_visitor(self, visitor, generic):
+        self.operand = visitor(self.operand)
+
 
 class While(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.While` node.
@@ -4417,6 +4544,13 @@ class While(mixins.BlockRangeMixIn, Statement):
                 continue
             for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
+
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+
+        self.body = [visitor(elt) for elt in self.body]
+
+        self.orelse = [visitor(elt) for elt in self.orelse]
 
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
@@ -4527,6 +4661,9 @@ class Yield(NodeNG):
 
     def _get_yield_nodes_skip_lambdas(self):
         yield self
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class YieldFrom(Yield):

@@ -1619,6 +1619,14 @@ class FunctionDef(node_classes.Statement, Lambda):
             for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
+    def accept_visitor(self, visitor, generic):
+        self.decorators = visitor(self.decorators)
+        self.args = visitor(self.args)
+        self.body = [visitor(elt) for elt in self.body]
+
+        if self.returns is not None:
+            self.returns = visitor(self.returns)
+
 
 class AsyncFunctionDef(FunctionDef):
     """Class representing an :class:`ast.FunctionDef` node.
@@ -2764,6 +2772,11 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 continue
             for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
+
+    def accept_visitor(self, visitor, generic):
+        self.decorators = visitor(self.decorators)
+        self.bases = [visitor(elt) for elt in self.bases]
+        self.body = [visitor(elt) for elt in self.body]
 
 
 # Backwards-compatibility aliases
