@@ -890,6 +890,12 @@ class NodeNG(object):
         """
         return util.Uninferable
 
+    def accept_visitor(self, visitor, generic):
+        for field in self._astroid_fields:
+            value = getattr(self, field)
+            visited = generic(value)
+            setattr(self, field, visited)
+
 
 class Statement(NodeNG):
     """Statement node adding a few attributes"""
@@ -1003,6 +1009,9 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
     def get_children(self):
         for elt in self.elts:
             yield elt
+
+    def accept_visitor(self, visitor, generic):
+        self.elts = [visitor(elt) for elt in self.elts]
 
 
 class LookupMixIn(object):
@@ -1212,6 +1221,9 @@ class AssignName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         return (_ for _ in ())
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class DelName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     """Variation of :class:`ast.Delete` represention deletion of a name.
@@ -1298,6 +1310,9 @@ class Name(LookupMixIn, NodeNG):
 
     def get_children(self):
         return (_ for _ in ())
+
+    def accept_visitor(self, visitor, generic):
+        pass
 
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
@@ -1674,6 +1689,9 @@ class AssignAttr(mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         yield self.expr
 
+    def accept_visitor(self, visitor, generic):
+        self.expr = visitor(self.expr)
+
 
 class Assert(Statement):
     """Class representing an :class:`ast.Assert` node.
@@ -1761,6 +1779,10 @@ class Assign(mixins.AssignTypeMixin, Statement):
             yield elt
 
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
+        self.targets = [visitor(elt) for elt in self.targets]
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -2010,6 +2032,10 @@ class BinOp(NodeNG):
         yield self.left
         yield self.right
 
+    def accept_visitor(self, visitor, generic):
+        self.left = visitor(self.left)
+        self.right = visitor(self.right)
+
 
 class BoolOp(NodeNG):
     """Class representing an :class:`ast.BoolOp` node.
@@ -2062,6 +2088,9 @@ class BoolOp(NodeNG):
     def get_children(self):
         for elt in self.values:
             yield elt
+
+    def accept_visitor(self, visitor, generic):
+        self.values = [visitor(elt) for elt in self.values]
 
 
 class Break(Statement):
@@ -2146,6 +2175,14 @@ class Call(NodeNG):
             for elt in self.keywords:
                 yield elt
 
+    def accept_visitor(self, visitor, generic):
+        self.func = visitor(self.func)
+
+        self.args = [visitor(elt) for elt in self.args]
+
+        if self.keywords is not None:
+            self.keywords = [visitor(elt) for elt in self.keywords]
+
 
 class Compare(NodeNG):
     """Class representing an :class:`ast.Compare` node.
@@ -2206,6 +2243,14 @@ class Compare(NodeNG):
         # XXX maybe if self.ops:
         return self.ops[-1][1]
         #return self.left
+
+    def accept_visitor(self, visitor, generic):
+        self.left = visitor(self.left)
+
+        self.ops = [
+            (string, visitor(node))
+            for (string, node) in self.ops
+        ]
 
 
 class Comprehension(NodeNG):
@@ -2434,6 +2479,9 @@ class Const(NodeNG, bases.Instance):
     def get_children(self):
         return (_ for _ in ())
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Continue(Statement):
     """Class representing an :class:`ast.Continue` node.
@@ -2490,6 +2538,9 @@ class Decorators(NodeNG):
     def get_children(self):
         for elt in self.nodes:
             yield elt
+
+    def accept_visitor(self, visitor, generic):
+        self.nodes = [visitor(elt) for elt in self.nodes]
 
 
 class DelAttr(mixins.ParentAssignTypeMixin, NodeNG):
@@ -2731,6 +2782,9 @@ class Expr(Statement):
 
     def get_children(self):
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Ellipsis(NodeNG): # pylint: disable=redefined-builtin
@@ -2986,6 +3040,12 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
         for elt in self.orelse:
             yield elt
 
+    def accept_visitor(self, visitor, generic):
+        self.target = visitor(self.target)
+        self.iter = visitor(self.iter)
+        self.body = [visitor(elt) for elt in self.body]
+        self.orelse = [visitor(elt) for elt in self.orelse]
+
 
 class AsyncFor(For):
     """Class representing an :class:`ast.AsyncFor` node.
@@ -3100,6 +3160,9 @@ class ImportFrom(mixins.ImportFromMixin, Statement):
     def get_children(self):
         return (_ for _ in ())
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Attribute(NodeNG):
     """Class representing an :class:`ast.Attribute` node."""
@@ -3144,6 +3207,9 @@ class Attribute(NodeNG):
 
     def get_children(self):
         yield self.expr
+
+    def accept_visitor(self, visitor, generic):
+        self.expr = visitor(self.expr)
 
 
 class Global(Statement):
@@ -3256,6 +3322,13 @@ class If(mixins.BlockRangeMixIn, Statement):
         for elt in self.orelse:
             yield elt
 
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+
+        self.body = [visitor(elt) for elt in self.body]
+
+        self.orelse = [visitor(elt) for elt in self.orelse]
+
 
 class IfExp(NodeNG):
     """Class representing an :class:`ast.IfExp` node.
@@ -3297,6 +3370,11 @@ class IfExp(NodeNG):
         self.body = body
         self.orelse = orelse
 
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+        self.body = visitor(self.body)
+        self.orelse = visitor(self.orelse)
+
 
 class Import(mixins.ImportFromMixin, Statement):
     """Class representing an :class:`ast.Import` node.
@@ -3336,6 +3414,9 @@ class Import(mixins.ImportFromMixin, Statement):
     def get_children(self):
         return (_ for _ in ())
 
+    def accept_visitor(self, visitor, generic):
+        pass
+
 
 class Index(NodeNG):
     """Class representing an :class:`ast.Index` node.
@@ -3365,6 +3446,9 @@ class Index(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Keyword(NodeNG):
@@ -3417,6 +3501,9 @@ class Keyword(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class List(_BaseContainer):
@@ -3520,6 +3607,9 @@ class Pass(Statement):
 
     def get_children(self):
         return (_ for _ in ())
+
+    def accept_visitor(self, visitor, generic):
+        pass
 
 
 class Print(Statement):
@@ -3644,6 +3734,13 @@ class Raise(Statement):
             if self.cause is not None:
                 yield self.cause
 
+        def accept_visitor(self, visitor, generic):
+            if self.exc is not None:
+                self.exc = visitor(self.exc)
+
+            if self.cause is not None:
+                self.cause = visitor(self.cause)
+
     def raises_not_implemented(self):
         """Check if this node raises a :class:`NotImplementedError`.
 
@@ -3693,6 +3790,9 @@ class Return(Statement):
     def get_children(self):
         if self.value is not None:
             yield self.value
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
 
 
 class Set(_BaseContainer):
@@ -3919,6 +4019,10 @@ class Subscript(NodeNG):
     def get_children(self):
         yield self.value
         yield self.slice
+
+    def accept_visitor(self, visitor, generic):
+        self.value = visitor(self.value)
+        self.slice = visitor(self.slice)
 
 
 class TryExcept(mixins.BlockRangeMixIn, Statement):
@@ -4178,6 +4282,9 @@ class UnaryOp(NodeNG):
     def get_children(self):
         yield self.operand
 
+    def accept_visitor(self, visitor, generic):
+        self.operand = visitor(self.operand)
+
 
 class While(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.While` node.
@@ -4250,6 +4357,13 @@ class While(mixins.BlockRangeMixIn, Statement):
 
         for elt in self.orelse:
             yield elt
+
+    def accept_visitor(self, visitor, generic):
+        self.test = visitor(self.test)
+
+        self.body = [visitor(elt) for elt in self.body]
+
+        self.orelse = [visitor(elt) for elt in self.orelse]
 
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):

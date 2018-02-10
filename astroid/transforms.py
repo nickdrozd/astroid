@@ -48,10 +48,7 @@ class TransformVisitor(object):
         if node is None or isinstance(node, str):
             return node
 
-        for field in node._astroid_fields:
-            value = getattr(node, field)
-            visited = self._visit_generic(value)
-            setattr(node, field, visited)
+        node.accept_visitor(self._visit, self._visit_generic)
 
         return self._transform(node)
 

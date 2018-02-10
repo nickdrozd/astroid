@@ -1224,6 +1224,14 @@ class FunctionDef(node_classes.Statement, Lambda):
             for elt in self.body:
                 yield elt
 
+        def accept_visitor(self, visitor, generic):
+            self.decorators = visitor(self.decorators)
+            self.args = visitor(self.args)
+            self.body = [generic(elt) for elt in self.body]
+
+            if self.returns is not None:
+                self.returns = visitor(self.returns)
+
     else:
         _astroid_fields = ('decorators', 'args', 'body')
     decorators = None
@@ -2719,6 +2727,11 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
 
         if self.decorators is not None:
             yield self.decorators
+
+    def accept_visitor(self, visitor, generic):
+        self.decorators = visitor(self.decorators)
+        self.bases = [generic(elt) for elt in self.bases]
+        self.body = [generic(elt) for elt in self.body]
 
 
 # Backwards-compatibility aliases
