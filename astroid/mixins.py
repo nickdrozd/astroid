@@ -108,3 +108,9 @@ class ImportFromMixin(FilterStmtsMixin):
         raise exceptions.AttributeInferenceError(
             'Could not find original name for {attribute} in {target!r}',
             target=self, attribute=asname)
+
+
+class NoChildrenMixin:
+    """Mixin for nodes with no children, e.g. Pass."""
+    def get_children(self):
+        yield from ()
