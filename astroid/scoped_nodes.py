@@ -705,6 +705,10 @@ class Module(LocalsDictNodeNG):
         """
         return True
 
+    def get_children(self):
+        for elt in self.body:
+            yield elt
+
 
 class ComprehensionScope(LocalsDictNodeNG):
     """Scoping for different types of comprehensions."""
@@ -1207,6 +1211,19 @@ class FunctionDef(node_classes.Statement, Lambda):
     if six.PY3:
         _astroid_fields = ('decorators', 'args', 'returns', 'body')
         returns = None
+
+        def get_children(self):
+            if self.decorators is not None:
+                yield self.decorators
+
+            yield self.args
+
+            if self.returns is not None:
+                yield self.returns
+
+            for elt in self.body:
+                yield elt
+
     else:
         _astroid_fields = ('decorators', 'args', 'body')
     decorators = None
@@ -2692,6 +2709,16 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         :rtype: bool
         """
         return True
+
+    def get_children(self):
+        for elt in self.body:
+            yield elt
+
+        for elt in self.bases:
+            yield elt
+
+        if self.decorators is not None:
+            yield self.decorators
 
 
 # Backwards-compatibility aliases

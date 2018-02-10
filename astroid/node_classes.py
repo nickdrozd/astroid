@@ -1000,6 +1000,10 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
         :rtype: str
         """
 
+    def get_children(self):
+        for elt in self.elts:
+            yield elt
+
 
 class LookupMixIn(object):
     """Mixin to look up a name in the right scope."""
@@ -1205,6 +1209,9 @@ class AssignName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
 
         super(AssignName, self).__init__(lineno, col_offset, parent)
 
+    def get_children(self):
+        return (_ for _ in ())
+
 
 class DelName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     """Variation of :class:`ast.Delete` represention deletion of a name.
@@ -1289,6 +1296,9 @@ class Name(LookupMixIn, NodeNG):
             for matching in child_node.get_name_nodes():
                 yield matching
 
+    def get_children(self):
+        return (_ for _ in ())
+
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
     """Class representing an :class:`ast.arguments` node.
@@ -1327,7 +1337,49 @@ class Arguments(mixins.AssignTypeMixin, NodeNG):
 
         :type: NodeNG
         """
+
+        def get_children(self):
+            if self.args is not None:
+                for elt in self.args:
+                    yield elt
+
+            for elt in self.defaults:
+                yield elt
+
+            for elt in self.kwonlyargs:
+                yield elt
+
+            if self.varargannotation is not None:
+                yield self.varargannotation
+
+            if self.kwargannotation is not None:
+                yield self.kwargannotation
+
+            for elt in self.kw_defaults:
+                if elt is not None:
+                    yield elt
+
+            for elt in self.annotations:
+                if elt is not None:
+                    yield elt
+
+            for elt in self.kwonlyargs_annotations:
+                if elt is not None:
+                    yield elt
+
     else:
+        def get_children(self):
+            """Get the child nodes below this node.
+
+            This skips over `None` elements in :attr:`kw_defaults`.
+
+            :returns: The children.
+            :rtype: iterable(NodeNG)
+            """
+            for child in super(Arguments, self).get_children():
+                if child is not None:
+                    yield child
+
         _astroid_fields = ('args', 'defaults', 'kwonlyargs', 'kw_defaults')
     _other_fields = ('vararg', 'kwarg')
 
@@ -1532,18 +1584,6 @@ class Arguments(mixins.AssignTypeMixin, NodeNG):
             return _find_arg(argname, self.args, rec)
         return None, None
 
-    def get_children(self):
-        """Get the child nodes below this node.
-
-        This skips over `None` elements in :attr:`kw_defaults`.
-
-        :returns: The children.
-        :rtype: iterable(NodeNG)
-        """
-        for child in super(Arguments, self).get_children():
-            if child is not None:
-                yield child
-
 
 def _find_arg(argname, args, rec=False):
     for i, arg in enumerate(args):
@@ -1631,6 +1671,9 @@ class AssignAttr(mixins.ParentAssignTypeMixin, NodeNG):
         """
         self.expr = expr
 
+    def get_children(self):
+        yield self.expr
+
 
 class Assert(Statement):
     """Class representing an :class:`ast.Assert` node.
@@ -1664,6 +1707,12 @@ class Assert(Statement):
         """
         self.fail = fail
         self.test = test
+
+    def get_children(self):
+        yield self.test
+
+        if self.fail is not None:
+            yield self.fail
 
 
 class Assign(mixins.AssignTypeMixin, Statement):
@@ -1706,6 +1755,13 @@ class Assign(mixins.AssignTypeMixin, Statement):
         for child_node in self.get_children():
             for matching in child_node.get_assign_nodes():
                 yield matching
+
+    def get_children(self):
+        for elt in self.targets:
+            yield elt
+
+        yield self.value
+
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.AnnAssign` node.
@@ -1842,6 +1898,10 @@ class AugAssign(mixins.AssignTypeMixin, Statement):
         except exceptions.InferenceError:
             return []
 
+    def get_children(self):
+        yield self.target
+        yield self.value
+
 
 class Repr(NodeNG):
     """Class representing an :class:`ast.Repr` node.
@@ -1946,6 +2006,10 @@ class BinOp(NodeNG):
         except exceptions.InferenceError:
             return []
 
+    def get_children(self):
+        yield self.left
+        yield self.right
+
 
 class BoolOp(NodeNG):
     """Class representing an :class:`ast.BoolOp` node.
@@ -1995,6 +2059,10 @@ class BoolOp(NodeNG):
         """
         self.values = values
 
+    def get_children(self):
+        for elt in self.values:
+            yield elt
+
 
 class Break(Statement):
     """Class representing an :class:`ast.Break` node.
@@ -2003,6 +2071,9 @@ class Break(Statement):
     >>> node
     <Break l.1 at 0x7f23b2e9e5c0>
     """
+
+    def get_children(self):
+        return (_ for _ in ())
 
 
 class Call(NodeNG):
@@ -2064,6 +2135,16 @@ class Call(NodeNG):
         """
         keywords = self.keywords or []
         return [keyword for keyword in keywords if keyword.arg is None]
+
+    def get_children(self):
+        yield self.func
+
+        for elt in self.args:
+            yield elt
+
+        if self.keywords is not None:
+            for elt in self.keywords:
+                yield elt
 
 
 class Compare(NodeNG):
@@ -2350,6 +2431,9 @@ class Const(NodeNG, bases.Instance):
         """
         return bool(self.value)
 
+    def get_children(self):
+        return (_ for _ in ())
+
 
 class Continue(Statement):
     """Class representing an :class:`ast.Continue` node.
@@ -2358,6 +2442,9 @@ class Continue(Statement):
     >>> node
     <Continue l.1 at 0x7f23b2e35588>
     """
+
+    def get_children(self):
+        return (_ for _ in ())
 
 
 class Decorators(NodeNG):
@@ -2399,6 +2486,10 @@ class Decorators(NodeNG):
         """
         # skip the function node to go directly to the upper level scope
         return self.parent.parent.scope()
+
+    def get_children(self):
+        for elt in self.nodes:
+            yield elt
 
 
 class DelAttr(mixins.ParentAssignTypeMixin, NodeNG):
@@ -2473,6 +2564,10 @@ class Delete(mixins.AssignTypeMixin, Statement):
         :type targets: list(NodeNG) or None
         """
         self.targets = targets
+
+    def get_children(self):
+        for elt in self.targets:
+            yield elt
 
 
 class Dict(NodeNG, bases.Instance):
@@ -2634,6 +2729,9 @@ class Expr(Statement):
         """
         self.value = value
 
+    def get_children(self):
+        yield self.value
+
 
 class Ellipsis(NodeNG): # pylint: disable=redefined-builtin
     """Class representing an :class:`ast.Ellipsis` node.
@@ -2659,6 +2757,9 @@ class EmptyNode(NodeNG):
     """Holds an arbitrary object in the :attr:`LocalsDictNodeNG.locals`."""
 
     object = None
+
+    def get_children(self):
+        return (_ for _ in ())
 
 
 class ExceptHandler(mixins.AssignTypeMixin, Statement):
@@ -2875,6 +2976,16 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
         """
         return self.iter.tolineno
 
+    def get_children(self):
+        yield self.target
+        yield self.iter
+
+        for elt in self.body:
+            yield elt
+
+        for elt in self.orelse:
+            yield elt
+
 
 class AsyncFor(For):
     """Class representing an :class:`ast.AsyncFor` node.
@@ -2986,6 +3097,9 @@ class ImportFrom(mixins.ImportFromMixin, Statement):
 
         super(ImportFrom, self).__init__(lineno, col_offset, parent)
 
+    def get_children(self):
+        return (_ for _ in ())
+
 
 class Attribute(NodeNG):
     """Class representing an :class:`ast.Attribute` node."""
@@ -3027,6 +3141,9 @@ class Attribute(NodeNG):
         :type expr: Name or None
         """
         self.expr = expr
+
+    def get_children(self):
+        yield self.expr
 
 
 class Global(Statement):
@@ -3130,6 +3247,15 @@ class If(mixins.BlockRangeMixIn, Statement):
         return self._elsed_block_range(lineno, self.orelse,
                                        self.body[0].fromlineno - 1)
 
+    def get_children(self):
+        yield self.test
+
+        for elt in self.body:
+            yield elt
+
+        for elt in self.orelse:
+            yield elt
+
 
 class IfExp(NodeNG):
     """Class representing an :class:`ast.IfExp` node.
@@ -3171,6 +3297,7 @@ class IfExp(NodeNG):
         self.body = body
         self.orelse = orelse
 
+
 class Import(mixins.ImportFromMixin, Statement):
     """Class representing an :class:`ast.Import` node.
 
@@ -3206,6 +3333,9 @@ class Import(mixins.ImportFromMixin, Statement):
 
         super(Import, self).__init__(lineno, col_offset, parent)
 
+    def get_children(self):
+        return (_ for _ in ())
+
 
 class Index(NodeNG):
     """Class representing an :class:`ast.Index` node.
@@ -3232,6 +3362,9 @@ class Index(NodeNG):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_children(self):
+        yield self.value
 
 
 class Keyword(NodeNG):
@@ -3281,6 +3414,9 @@ class Keyword(NodeNG):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_children(self):
+        yield self.value
 
 
 class List(_BaseContainer):
@@ -3381,6 +3517,9 @@ class Pass(Statement):
     >>> node
     <Pass l.1 at 0x7f23b2e9e748>
     """
+
+    def get_children(self):
+        return (_ for _ in ())
 
 
 class Print(Statement):
@@ -3498,6 +3637,13 @@ class Raise(Statement):
             self.exc = exc
             self.cause = cause
 
+        def get_children(self):
+            if self.exc is not None:
+                yield self.exc
+
+            if self.cause is not None:
+                yield self.cause
+
     def raises_not_implemented(self):
         """Check if this node raises a :class:`NotImplementedError`.
 
@@ -3543,6 +3689,10 @@ class Return(Statement):
                 continue
             for matching in child_node.get_return_nodes_skip_functions():
                 yield matching
+
+    def get_children(self):
+        if self.value is not None:
+            yield self.value
 
 
 class Set(_BaseContainer):
@@ -3647,6 +3797,16 @@ class Slice(NodeNG):
     def getattr(self, attrname, context=None):
         return self._proxied.getattr(attrname, context)
 
+    def get_children(self):
+        if self.lower is not None:
+            yield self.lower
+
+        if self.step is not None:
+            yield self.step
+
+        if self.upper is not None:
+            yield self.upper
+
 
 class Starred(mixins.ParentAssignTypeMixin, NodeNG):
     """Class representing an :class:`ast.Starred` node.
@@ -3694,6 +3854,9 @@ class Starred(mixins.ParentAssignTypeMixin, NodeNG):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_children(self):
+        yield self.value
 
 
 class Subscript(NodeNG):
@@ -3752,6 +3915,10 @@ class Subscript(NodeNG):
         """
         self.value = value
         self.slice = slice
+
+    def get_children(self):
+        yield self.value
+        yield self.slice
 
 
 class TryExcept(mixins.BlockRangeMixIn, Statement):
@@ -3821,6 +3988,18 @@ class TryExcept(mixins.BlockRangeMixIn, Statement):
             if last is None:
                 last = exhandler.body[0].fromlineno - 1
         return self._elsed_block_range(lineno, self.orelse, last)
+
+    def get_children(self):
+        for elt in self.body:
+            yield elt
+
+        if self.handlers is not None:
+            for elt in self.handlers:
+                yield elt
+
+        if self.orelse is not None:
+            for elt in self.orelse:
+                yield elt
 
 
 class TryFinally(mixins.BlockRangeMixIn, Statement):
@@ -3996,6 +4175,9 @@ class UnaryOp(NodeNG):
         except exceptions.InferenceError:
             return []
 
+    def get_children(self):
+        yield self.operand
+
 
 class While(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.While` node.
@@ -4059,6 +4241,15 @@ class While(mixins.BlockRangeMixIn, Statement):
         :rtype: tuple(int, int)
         """
         return self. _elsed_block_range(lineno, self.orelse)
+
+    def get_children(self):
+        yield self.test
+
+        for elt in self.body:
+            yield elt
+
+        for elt in self.orelse:
+            yield elt
 
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
