@@ -223,6 +223,7 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_lambda = False
     # Attributes below are set by the builder module or by raw factories
     lineno = None
     """The line that this node appears on in the source code.
@@ -642,6 +643,30 @@ class NodeNG(object):
             if isinstance(child_node, skip_klass):
                 continue
             for matching in child_node.nodes_of_class(klass, skip_klass):
+                yield matching
+
+    def get_assign_nodes(self):
+        for child_node in self.get_children():
+            for matching in child_node.get_assign_nodes():
+                yield matching
+
+    def get_name_nodes(self):
+        for child_node in self.get_children():
+            for matching in child_node.get_name_nodes():
+                yield matching
+
+    def get_return_nodes_skip_functions(self):
+        for child_node in self.get_children():
+            if child_node.is_function:
+                continue
+            for matching in child_node.get_return_nodes_skip_functions():
+                yield matching
+
+    def get_yield_nodes_skip_lambdas(self):
+        for child_node in self.get_children():
+            if child_node.is_lambda:
+                continue
+            for matching in child_node.get_yield_nodes_skip_lambdas():
                 yield matching
 
     def _infer_name(self, frame, name):
@@ -1257,6 +1282,13 @@ class Name(LookupMixIn, NodeNG):
 
         super(Name, self).__init__(lineno, col_offset, parent)
 
+    def get_name_nodes(self):
+        yield self
+
+        for child_node in self.get_children():
+            for matching in child_node.get_name_nodes():
+                yield matching
+
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
     """Class representing an :class:`ast.arguments` node.
@@ -1668,6 +1700,12 @@ class Assign(mixins.AssignTypeMixin, Statement):
         self.targets = targets
         self.value = value
 
+    def get_assign_nodes(self):
+        yield self
+
+        for child_node in self.get_children():
+            for matching in child_node.get_assign_nodes():
+                yield matching
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.AnnAssign` node.
@@ -2696,7 +2734,7 @@ class ExceptHandler(mixins.AssignTypeMixin, Statement):
         """
         if self.type is None or exceptions is None:
             return True
-        for node in self.type.nodes_of_class(Name):
+        for node in self.type.get_name_nodes():
             if node.name in exceptions:
                 return True
         return False
@@ -3469,7 +3507,7 @@ class Raise(Statement):
         """
         if not self.exc:
             return False
-        for name in self.exc.nodes_of_class(Name):
+        for name in self.exc.get_name_nodes():
             if name.name == 'NotImplementedError':
                 return True
         return False
@@ -3496,6 +3534,15 @@ class Return(Statement):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_return_nodes_skip_functions(self):
+        yield self
+
+        for child_node in self.get_children():
+            if child_node.is_function:
+                continue
+            for matching in child_node.get_return_nodes_skip_functions():
+                yield matching
 
 
 class Set(_BaseContainer):
@@ -4096,6 +4143,15 @@ class Yield(NodeNG):
         :type value: NodeNG or None
         """
         self.value = value
+
+    def get_yield_nodes_skip_lambdas(self):
+        yield self
+
+        for child_node in self.get_children():
+            if child_node.is_function_or_lambda:
+                continue
+            for matching in child_node.get_yield_nodes_skip_lambdas():
+                yield matching
 
 
 class YieldFrom(Yield):

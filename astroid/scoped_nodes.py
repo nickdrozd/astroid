@@ -1030,6 +1030,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
     _astroid_fields = ('args', 'body',)
     _other_other_fields = ('locals',)
     name = '<lambda>'
+    is_lambda = True
 
     # function's type, 'function' | 'method' | 'staticmethod' | 'classmethod'
     @property
@@ -1305,7 +1306,7 @@ class FunctionDef(node_classes.Statement, Lambda):
             return []
 
         decorators = []
-        for assign in frame.nodes_of_class(node_classes.Assign):
+        for assign in frame.get_assign_nodes():
             if (isinstance(assign.value, node_classes.Call)
                     and isinstance(assign.value.func, node_classes.Name)):
                 for assign_node in assign.targets:
@@ -1522,9 +1523,7 @@ class FunctionDef(node_classes.Statement, Lambda):
         :returns: True is this is a generator function, False otherwise.
         :rtype: bool
         """
-        yield_nodes = (node_classes.Yield, node_classes.YieldFrom)
-        return next(self.nodes_of_class(yield_nodes,
-                                        skip_klass=(FunctionDef, Lambda)), False)
+        return next(self.get_yield_nodes_skip_lambdas(), False)
 
     def infer_call_result(self, caller=None, context=None):
         """Infer what the function returns when called.
@@ -1555,7 +1554,7 @@ class FunctionDef(node_classes.Statement, Lambda):
                 c._metaclass = metaclass
                 yield c
                 return
-        returns = self.nodes_of_class(node_classes.Return, skip_klass=FunctionDef)
+        returns = self.get_return_nodes_skip_functions()
         for returnnode in returns:
             if returnnode.value is None:
                 yield node_classes.Const(None)
