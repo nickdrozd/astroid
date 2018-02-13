@@ -209,6 +209,8 @@ class NodeNG(object):
 
     :type: bool
     """
+    is_class_def = False
+    is_instance = False
     optional_assign = False # True for For (and for Comprehension if py <3.0)
     """Whether this node optionally assigns a variable.
 

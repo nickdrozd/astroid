@@ -1014,9 +1014,9 @@ def _infer_decorator_callchain(node):
         result = next(node.infer_call_result(node.parent))
     except (StopIteration, exceptions.InferenceError):
         return None
-    if isinstance(result, bases.Instance):
+    if result.is_instance:
         result = result._proxied
-    if isinstance(result, ClassDef):
+    if result.is_class_def:
         if result.is_subtype_of('%s.classmethod' % BUILTINS):
             return 'classmethod'
         if result.is_subtype_of('%s.staticmethod' % BUILTINS):
@@ -1046,7 +1046,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
         """
         # pylint: disable=no-member
         if self.args.args and self.args.args[0].name == 'self':
-            if isinstance(self.parent.scope(), ClassDef):
+            if self.parent.scope().is_class_def:
                 return 'method'
         return 'function'
 
@@ -1312,7 +1312,7 @@ class FunctionDef(node_classes.Statement, Lambda):
         self.decorators = decorators
         self.returns = returns
 
-        if six.PY3 and isinstance(self.parent.frame(), ClassDef):
+        if six.PY3 and self.parent.frame().is_class_def:
             self.set_local('__class__', self.parent.frame())
 
     @decorators_mod.cachedproperty
@@ -1327,7 +1327,7 @@ class FunctionDef(node_classes.Statement, Lambda):
         :type: list(NodeNG)
         """
         frame = self.parent.frame()
-        if not isinstance(frame, ClassDef):
+        if not frame.is_class_def:
             return []
 
         decorators = []
@@ -1371,7 +1371,7 @@ class FunctionDef(node_classes.Statement, Lambda):
 
         frame = self.parent.frame()
         type_name = 'function'
-        if isinstance(frame, ClassDef):
+        if frame.is_class_def:
             if self.name == '__new__':
                 return 'classmethod'
             elif sys.version_info >= (3, 6) and self.name == '__init_subclass__':
@@ -1407,10 +1407,10 @@ class FunctionDef(node_classes.Statement, Lambda):
                     if _type is not None:
                         return _type
 
-                    if not isinstance(inferred, ClassDef):
+                    if not inferred.is_class_def:
                         continue
                     for ancestor in inferred.ancestors():
-                        if not isinstance(ancestor, ClassDef):
+                        if not ancestor.is_class_def:
                             continue
                         if ancestor.is_subtype_of('%s.classmethod' % BUILTINS):
                             return 'classmethod'
@@ -1481,7 +1481,7 @@ class FunctionDef(node_classes.Statement, Lambda):
         """
         # check we are defined in a ClassDef, because this is usually expected
         # (e.g. pylint...) when is_method() return True
-        return self.type != 'function' and isinstance(self.parent.frame(), ClassDef)
+        return self.type != 'function' and self.parent.frame().is_class_def
 
     @decorators_mod.cached
     def decoratornames(self):
@@ -1570,7 +1570,7 @@ class FunctionDef(node_classes.Statement, Lambda):
                 len(self.args.args) == 1 and
                 self.args.vararg is not None):
             metaclass = next(caller.args[0].infer(context))
-            if isinstance(metaclass, ClassDef):
+            if metaclass.is_class_def:
                 c = ClassDef('temporary_class', None)
                 c.hide = True
                 c.parent = self
@@ -1646,14 +1646,14 @@ def _is_metaclass(klass, seen=None):
                     continue
                 else:
                     seen.add(baseobj_name)
-                if isinstance(baseobj, bases.Instance):
+                if baseobj.is_instance:
                     # not abstract
                     return False
                 if baseobj is util.Uninferable:
                     continue
                 if baseobj is klass:
                     continue
-                if not isinstance(baseobj, ClassDef):
+                if not baseobj.is_class_def:
                     continue
                 if baseobj._type == 'metaclass':
                     return True
@@ -1709,7 +1709,7 @@ def get_wrapping_class(node):
     """
 
     klass = node.frame()
-    while klass is not None and not isinstance(klass, ClassDef):
+    while klass is not None and not klass.is_class_def:
         if klass.parent is None:
             klass = None
         else:
@@ -1758,6 +1758,8 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
     _other_fields = ('name', 'doc')
     _other_other_fields = ('locals', '_newstyle')
     _newstyle = None
+
+    is_class_def = True
 
     def __init__(self, name=None, doc=None, lineno=None,
                  col_offset=None, parent=None):
@@ -1879,7 +1881,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         klass = self.declared_metaclass()
         # could be any callable, we'd need to infer the result of klass(name,
         # bases, dict).  punt if it's not a class node.
-        if klass is not None and isinstance(klass, ClassDef):
+        if klass is not None and klass.is_class_def:
             self._newstyle = klass._newstyle_impl(context)
         if self._newstyle is None:
             self._newstyle = False
@@ -2091,8 +2093,8 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
             with context.restore_path():
                 try:
                     for baseobj in stmt.infer(context):
-                        if not isinstance(baseobj, ClassDef):
-                            if isinstance(baseobj, bases.Instance):
+                        if not baseobj.is_class_def:
+                            if baseobj.is_instance:
                                 baseobj = baseobj._proxied
                             else:
                                 continue
@@ -2124,8 +2126,8 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
             with context.restore_path():
                 try:
                     for baseobj in stmt.infer(context):
-                        if not isinstance(baseobj, ClassDef):
-                            if isinstance(baseobj, bases.Instance):
+                        if not baseobj.is_class_def:
+                            if baseobj.is_instance:
                                 baseobj = baseobj._proxied
                             else:
                                 continue
@@ -2311,7 +2313,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         implicit_meta = self.implicit_metaclass()
         metaclass = self.metaclass()
         for cls in {implicit_meta, metaclass}:
-            if cls and cls != self and isinstance(cls, ClassDef):
+            if cls and cls != self and cls.is_class_def:
                 cls_attributes = self._get_attribute_from_metaclass(
                     cls, name, context)
                 attrs.update(set(cls_attributes))
@@ -2365,7 +2367,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
             for inferred in bases._infer_stmts(attrs, context, frame=self):
                 # yield Uninferable object instead of descriptors when necessary
                 if (not isinstance(inferred, node_classes.Const)
-                        and isinstance(inferred, bases.Instance)):
+                        and inferred.is_instance):
                     try:
                         inferred._proxied.getattr('__get__', context)
                     except exceptions.AttributeInferenceError:
@@ -2497,7 +2499,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         for base in self.bases:
             try:
                 for baseobj in base.infer():
-                    if isinstance(baseobj, ClassDef) and baseobj.hide:
+                    if baseobj.is_class_def and baseobj.hide:
                         self._metaclass = baseobj._metaclass
                         self._metaclass_hack = True
                         break
@@ -2691,9 +2693,9 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 baseobj = next(stmt.infer(context=context))
             except exceptions.InferenceError:
                 continue
-            if isinstance(baseobj, bases.Instance):
+            if baseobj.is_instance:
                 baseobj = baseobj._proxied
-            if not isinstance(baseobj, ClassDef):
+            if not baseobj.is_class_def:
                 continue
             if not baseobj.hide:
                 yield baseobj

@@ -187,7 +187,7 @@ class CallSite(object):
                     # XXX can do better ?
                     boundnode = funcnode.parent.frame()
 
-                if isinstance(boundnode, nodes.ClassDef):
+                if boundnode.is_class_def:
                     # Verify that we're accessing a method
                     # of the metaclass through a class, as in
                     # `cls.metaclass_method`. In this case, the
@@ -197,7 +197,7 @@ class CallSite(object):
                         return iter((boundnode, ))
 
                 if funcnode.type == 'method':
-                    if not isinstance(boundnode, bases.Instance):
+                    if not boundnode.is_instance:
                         boundnode = bases.Instance(boundnode)
                     return iter((boundnode,))
                 if funcnode.type == 'classmethod':

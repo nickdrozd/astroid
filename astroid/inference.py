@@ -244,8 +244,7 @@ def infer_attribute(self, context=None):
             # This handles the situation where the attribute is accessed through a subclass
             # of a base class and the attribute is defined at the base class's level,
             # by taking in consideration a redefinition in the subclass.
-            if (isinstance(owner, bases.Instance)
-                    and isinstance(context.boundnode, bases.Instance)):
+            if (owner.is_instance and context.boundnode.is_instance):
                 try:
                     if helpers.is_subtype(helpers.object_type(context.boundnode),
                                           helpers.object_type(owner)):
@@ -437,7 +436,7 @@ def _infer_unaryop(self, context=None):
                 else:
                     yield util.Uninferable
             else:
-                if not isinstance(operand, (bases.Instance, nodes.ClassDef)):
+                if not (operand.is_instance or operand.is_class_def):
                     # The operation was used on something which
                     # doesn't support it.
                     yield util.BadUnaryOperationMessage(operand, self.op, exc)
