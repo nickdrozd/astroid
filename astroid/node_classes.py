@@ -92,11 +92,11 @@ def are_exclusive(stmt1, stmt2, exceptions=None): # pylint: disable=redefined-ou
         if node in stmt1_parents:
             # if the common parent is a If or TryExcept statement, look if
             # nodes are in exclusive branches
-            if isinstance(node, If) and exceptions is None:
+            if exceptions is None and node.is_if:
                 if (node.locate_child(previous)[1]
                         is not node.locate_child(children[node])[1]):
                     return True
-            elif isinstance(node, TryExcept):
+            elif node.is_try_except:
                 c2attr, c2node = node.locate_child(previous)
                 c1attr, c1node = node.locate_child(children[node])
                 if c1node is not c2node:
@@ -208,6 +208,8 @@ class NodeNG(object):
     is_instance = False
     is_assign_name = False
     is_del_name = False
+    is_if = False
+    is_try_except = False
     optional_assign = False # True for For (and for Comprehension if py <3.0)
     """Whether this node optionally assigns a variable.
 
@@ -3299,6 +3301,8 @@ class IfExp(NodeNG):
     :type: list(NodeNG) or None
     """
 
+    is_if = True
+
     def postinit(self, test=None, body=None, orelse=None):
         """Do some setup after initialisation.
 
@@ -3942,6 +3946,8 @@ class TryExcept(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
     :type: list(NodeNG) or None
     """
 
+    is_try_except = True
+
     def postinit(self, body=None, handlers=None, orelse=None):
         """Do some setup after initialisation.
 
@@ -4040,7 +4046,7 @@ class TryFinally(mixins.MultiLineBlockMixin,
         """
         child = self.body[0]
         # py2.5 try: except: finally:
-        if (isinstance(child, TryExcept) and child.fromlineno == self.fromlineno
+        if (child.is_try_except and child.fromlineno == self.fromlineno
                 and lineno > self.fromlineno and lineno <= child.tolineno):
             return child.block_range(lineno)
         return self._elsed_block_range(lineno, self.finalbody)
