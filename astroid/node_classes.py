@@ -215,6 +215,7 @@ class NodeNG(object):
     is_del_name = False
     is_if = False
     is_try_except = False
+    is_decorators = False
     optional_assign = False # True for For (and for Comprehension if py <3.0)
     """Whether this node optionally assigns a variable.
 
@@ -2535,6 +2536,8 @@ class Decorators(NodeNG):
 
     :type: list(Name or Call) or None
     """
+
+    is_decorators = True
 
     def postinit(self, nodes):
         """Do some setup after initialisation.

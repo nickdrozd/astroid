@@ -2025,12 +2025,9 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         # into the upper scope of this class. We might have a
         # decorator that it's poorly named after a builtin object
         # inside this class.
-        lookup_upper_frame = (
-            isinstance(node.parent, node_classes.Decorators) and
-            name in MANAGER.astroid_cache[six.moves.builtins.__name__]
-        )
-        if any(node == base or base.parent_of(node)
-               for base in self.bases) or lookup_upper_frame:
+        if (any(node == base or base.parent_of(node) for base in self.bases)
+                or (node.parent.is_decorators
+                   and name in MANAGER.astroid_cache[six.moves.builtins.__name__])):
             # Handle the case where we have either a name
             # in the bases of a class, which exists before
             # the actual definition or the case where we have
