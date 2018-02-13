@@ -206,6 +206,8 @@ class NodeNG(object):
     """
     is_class_def = False
     is_instance = False
+    is_assign_name = False
+    is_del_name = False
     optional_assign = False # True for For (and for Comprehension if py <3.0)
     """Whether this node optionally assigns a variable.
 
@@ -1161,11 +1163,11 @@ class LookupMixIn(object):
                 if not (optional_assign or are_exclusive(_stmts[pindex], node)):
                     del _stmt_parents[pindex]
                     del _stmts[pindex]
-            if isinstance(node, AssignName):
+            if node.is_assign_name:
                 if not optional_assign and stmt.parent is mystmt.parent:
                     _stmts = []
                     _stmt_parents = []
-            elif isinstance(node, DelName):
+            elif node.is_del_name:
                 _stmts = []
                 _stmt_parents = []
                 continue
@@ -1192,6 +1194,8 @@ class AssignName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     'variable'
     """
     _other_fields = ('name',)
+
+    is_assign_name = True
 
     def __init__(self, name=None, lineno=None, col_offset=None, parent=None):
         """
@@ -1232,6 +1236,8 @@ class DelName(LookupMixIn, mixins.ParentAssignTypeMixin, NodeNG):
     'variable'
     """
     _other_fields = ('name',)
+
+    is_del_name = True
 
     def __init__(self, name=None, lineno=None, col_offset=None, parent=None):
         """
