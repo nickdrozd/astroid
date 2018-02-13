@@ -2071,13 +2071,21 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         """
         # FIXME: should be possible to choose the resolution order
         # FIXME: inference make infinite loops possible here
-        yielded = set([self])
         if context is None:
             context = contextmod.InferenceContext()
+
+        if not recurs:
+            return self._parents(context)
+
+        return self._ancestors(context)
+
+    def _ancestors(self, context=None):
         if six.PY3:
             if not self.bases and self.qname() != 'builtins.object':
                 yield builtin_lookup("object")[1][0]
                 return
+
+        yielded = set([self])
 
         for stmt in self.bases:
             with context.restore_path():
@@ -2093,16 +2101,39 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                                 continue
                             yielded.add(baseobj)
                             yield baseobj
-                        if recurs:
-                            for grandpa in baseobj.ancestors(recurs=True,
-                                                             context=context):
-                                if grandpa is self:
-                                    # This class is the ancestor of itself.
-                                    break
-                                if grandpa in yielded:
-                                    continue
-                                yielded.add(grandpa)
-                                yield grandpa
+                        for grandpa in baseobj._ancestors(context=context):
+                            if grandpa is self:
+                                # This class is the ancestor of itself.
+                                break
+                            if grandpa in yielded:
+                                continue
+                            yielded.add(grandpa)
+                            yield grandpa
+                except exceptions.InferenceError:
+                    continue
+
+    def _parents(self, context=None):
+        if six.PY3:
+            if not self.bases and self.qname() != 'builtins.object':
+                yield builtin_lookup("object")[1][0]
+                return
+
+        yielded = set([self])
+
+        for stmt in self.bases:
+            with context.restore_path():
+                try:
+                    for baseobj in stmt.infer(context):
+                        if not isinstance(baseobj, ClassDef):
+                            if isinstance(baseobj, bases.Instance):
+                                baseobj = baseobj._proxied
+                            else:
+                                continue
+                        if not baseobj.hide:
+                            if baseobj in yielded:
+                                continue
+                            yielded.add(baseobj)
+                            yield baseobj
                 except exceptions.InferenceError:
                     continue
 
