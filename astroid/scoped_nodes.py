@@ -2027,7 +2027,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         # decorator that it's poorly named after a builtin object
         # inside this class.
         lookup_upper_frame = (
-            isinstance(node.parent, node_classes.Decorators) and
+            node.parent.is_decorators and
             name in MANAGER.astroid_cache[builtins.__name__]
         )
         if any(node == base or base.parent_of(node)
