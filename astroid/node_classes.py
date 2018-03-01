@@ -651,11 +651,7 @@ class NodeNG(object):
                 yield matching
 
     def _get_return_nodes_skip_functions(self):
-        for child_node in self.get_children():
-            if child_node.is_function:
-                continue
-            for matching in child_node._get_return_nodes_skip_functions():
-                yield matching
+        yield from ()
 
     def _get_yield_nodes_skip_lambdas(self):
         for child_node in self.get_children():
@@ -2833,6 +2829,13 @@ class ExceptHandler(mixins.AssignTypeMixin, Statement):
                 return True
         return False
 
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
 
 class Exec(Statement):
     """Class representing the ``exec`` statement.
@@ -2983,6 +2986,19 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
 
         for child_node in self.orelse:
             for matching in child_node._get_assign_nodes():
+                yield matching
+
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
 
@@ -3265,6 +3281,19 @@ class If(mixins.BlockRangeMixIn, Statement):
 
         for child_node in self.orelse:
             for matching in child_node._get_assign_nodes():
+                yield matching
+
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
 
@@ -3678,12 +3707,6 @@ class Return(Statement):
     def _get_return_nodes_skip_functions(self):
         yield self
 
-        for child_node in self.get_children():
-            if child_node.is_function:
-                continue
-            for matching in child_node._get_return_nodes_skip_functions():
-                yield matching
-
 
 class Set(_BaseContainer):
     """Class representing an :class:`ast.Set` node.
@@ -3994,6 +4017,19 @@ class TryExcept(mixins.BlockRangeMixIn, Statement):
             for matching in child_node._get_assign_nodes():
                 yield matching
 
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+        for child_node in self.orelse or ():
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
 
 class TryFinally(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.TryFinally` node.
@@ -4061,6 +4097,19 @@ class TryFinally(mixins.BlockRangeMixIn, Statement):
 
         for child_node in self.finalbody:
             for matching in child_node._get_assign_nodes():
+                yield matching
+
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+        for child_node in self.finalbody:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
 
@@ -4263,6 +4312,19 @@ class While(mixins.BlockRangeMixIn, Statement):
             for matching in child_node._get_assign_nodes():
                 yield matching
 
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.With` node.
@@ -4323,6 +4385,13 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     def _get_assign_nodes(self):
         for child_node in self.body:
             for matching in child_node._get_assign_nodes():
+                yield matching
+
+    def _get_return_nodes_skip_functions(self):
+        for child_node in self.body:
+            if child_node.is_function:
+                continue
+            for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
 
