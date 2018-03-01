@@ -1606,6 +1606,13 @@ class FunctionDef(node_classes.Statement, Lambda):
             for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
 
 class AsyncFunctionDef(FunctionDef):
     """Class representing an :class:`ast.FunctionDef` node.
@@ -2715,6 +2722,13 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
     def _get_assign_nodes(self):
         for child_node in self.body:
             for matching in child_node._get_assign_nodes():
+                yield matching
+
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
 

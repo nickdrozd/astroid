@@ -654,11 +654,7 @@ class NodeNG(object):
         yield from ()
 
     def _get_yield_nodes_skip_lambdas(self):
-        for child_node in self.get_children():
-            if child_node.is_lambda:
-                continue
-            for matching in child_node._get_yield_nodes_skip_lambdas():
-                yield matching
+        yield from ()
 
     def _infer_name(self, frame, name):
         # overridden for ImportFrom, Import, Global, TryExcept and Arguments
@@ -2709,6 +2705,11 @@ class Expr(Statement):
     def get_children(self):
         yield self.value
 
+    def _get_yield_nodes_skip_lambdas(self):
+        if not self.value.is_lambda:
+            for matching in self.value._get_yield_nodes_skip_lambdas():
+                yield matching
+
 
 class Ellipsis(NodeNG): # pylint: disable=redefined-builtin
     """Class representing an :class:`ast.Ellipsis` node.
@@ -2834,6 +2835,13 @@ class ExceptHandler(mixins.AssignTypeMixin, Statement):
             if child_node.is_function:
                 continue
             for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
 
@@ -2999,6 +3007,19 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
             if child_node.is_function:
                 continue
             for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
 
@@ -3294,6 +3315,19 @@ class If(mixins.BlockRangeMixIn, Statement):
             if child_node.is_function:
                 continue
             for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
 
@@ -4030,6 +4064,19 @@ class TryExcept(mixins.BlockRangeMixIn, Statement):
             for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
 
 class TryFinally(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.TryFinally` node.
@@ -4110,6 +4157,19 @@ class TryFinally(mixins.BlockRangeMixIn, Statement):
             if child_node.is_function:
                 continue
             for matching in child_node._get_return_nodes_skip_functions():
+                yield matching
+
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
+        for child_node in self.finalbody:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
                 yield matching
 
 
@@ -4325,6 +4385,19 @@ class While(mixins.BlockRangeMixIn, Statement):
             for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
+        for child_node in self.orelse:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.With` node.
@@ -4394,6 +4467,13 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
             for matching in child_node._get_return_nodes_skip_functions():
                 yield matching
 
+    def _get_yield_nodes_skip_lambdas(self):
+        for child_node in self.body:
+            if child_node.is_lambda:
+                continue
+            for matching in child_node._get_yield_nodes_skip_lambdas():
+                yield matching
+
 
 class AsyncWith(With):
     """Asynchronous ``with`` built with the ``async`` keyword."""
@@ -4427,12 +4507,6 @@ class Yield(NodeNG):
 
     def _get_yield_nodes_skip_lambdas(self):
         yield self
-
-        for child_node in self.get_children():
-            if child_node.is_function_or_lambda:
-                continue
-            for matching in child_node._get_yield_nodes_skip_lambdas():
-                yield matching
 
 
 class YieldFrom(Yield):
