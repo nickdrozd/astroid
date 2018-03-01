@@ -643,9 +643,7 @@ class NodeNG(object):
                 yield matching
 
     def _get_assign_nodes(self):
-        for child_node in self.get_children():
-            for matching in child_node._get_assign_nodes():
-                yield matching
+        yield from ()
 
     def _get_name_nodes(self):
         for child_node in self.get_children():
@@ -1737,9 +1735,8 @@ class Assign(mixins.AssignTypeMixin, Statement):
     def _get_assign_nodes(self):
         yield self
 
-        for child_node in self.get_children():
-            for matching in child_node._get_assign_nodes():
-                yield matching
+        for matching in self.value._get_assign_nodes():
+            yield matching
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -2979,6 +2976,15 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
         yield from self.body
         yield from self.orelse
 
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
+        for child_node in self.orelse:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
 
 class AsyncFor(For):
     """Class representing an :class:`ast.AsyncFor` node.
@@ -3251,6 +3257,15 @@ class If(mixins.BlockRangeMixIn, Statement):
 
         yield from self.body
         yield from self.orelse
+
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
+        for child_node in self.orelse:
+            for matching in child_node._get_assign_nodes():
+                yield matching
 
 
 class IfExp(NodeNG):
@@ -3970,6 +3985,15 @@ class TryExcept(mixins.BlockRangeMixIn, Statement):
         yield from self.handlers or ()
         yield from self.orelse or ()
 
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
+        for child_node in self.orelse:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
 
 class TryFinally(mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.TryFinally` node.
@@ -4029,6 +4053,15 @@ class TryFinally(mixins.BlockRangeMixIn, Statement):
     def get_children(self):
         yield from self.body
         yield from self.finalbody
+
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
+        for child_node in self.finalbody:
+            for matching in child_node._get_assign_nodes():
+                yield matching
 
 
 class Tuple(_BaseContainer):
@@ -4221,6 +4254,15 @@ class While(mixins.BlockRangeMixIn, Statement):
         yield from self.body
         yield from self.orelse
 
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
+        for child_node in self.orelse:
+            for matching in child_node._get_assign_nodes():
+                yield matching
+
 
 class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.With` node.
@@ -4277,6 +4319,11 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
                 yield var
         for elt in self.body:
             yield elt
+
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            for matching in child_node._get_assign_nodes():
+                yield matching
 
 
 class AsyncWith(With):
