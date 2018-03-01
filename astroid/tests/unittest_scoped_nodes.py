@@ -329,6 +329,8 @@ class FunctionNodeTest(ModuleLoader, unittest.TestCase):
         self.assertTrue(self.module2['generator'].is_generator())
         self.assertFalse(self.module2['not_a_generator'].is_generator())
         self.assertFalse(self.module2['make_class'].is_generator())
+        self.assertTrue(self.module2['lambda_generator'].is_generator())
+        self.assertTrue(self.module2['generator_with_generators'].is_generator())
 
     def test_is_abstract(self):
         method = self.module2['AbstractClass']['to_override']
@@ -544,7 +546,7 @@ class FunctionNodeTest(ModuleLoader, unittest.TestCase):
                 def staticmethod_wrapped():
                     pass
                 @long_classmethod_decorator()
-                def long_classmethod(cls): 
+                def long_classmethod(cls):
                     pass
         """)
         node = astroid.locals['SomeClass'][0]
@@ -669,7 +671,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
         node = builder.extract_node('''
         class A(object): pass
         class B(object): pass
-        class C(A, B): pass        
+        class C(A, B): pass
         ''')
         mro = node.getattr('__mro__')[0]
         self.assertIsInstance(mro, nodes.Tuple)
@@ -1438,7 +1440,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
             class Inner(OuterC.Inner, OuterB.Inner):
                 pass
         class Duplicates(str, str): pass
-        
+
         """)
         self.assertEqualMro(astroid['D'], ['D', 'dict', 'C', 'object'])
         self.assertEqualMro(astroid['D1'], ['D1', 'B1', 'C1', 'A1', 'object'])
@@ -1557,7 +1559,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
     def test_metaclass_lookup_using_same_class(self):
         # Check that we don't have recursive attribute access for metaclass
         cls = builder.extract_node('''
-        class A(object): pass            
+        class A(object): pass
         ''')
         self.assertEqual(len(cls.getattr('mro')), 1)
 
@@ -1569,7 +1571,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
             foo = lala
 
         @six.add_metaclass(Metaclass)
-        class B(object): pass 
+        class B(object): pass
         ''')
         cls = module['B']
         self.assertEqual(util.Uninferable, next(cls.igetattr('foo')))
@@ -1577,7 +1579,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
     def test_metaclass_lookup(self):
         module = builder.parse('''
         import six
-         
+
         class Metaclass(type):
             foo = 42
             @classmethod
@@ -1747,7 +1749,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
              def class_method(self): #@
                  pass
              class_method = classmethod(class_method)
-             static = staticmethod(static)              
+             static = staticmethod(static)
         ''')
         self.assertEqual(len(clsmethod.extra_decorators), 1)
         self.assertEqual(clsmethod.type, 'classmethod')
@@ -1767,7 +1769,7 @@ class ClassNodeTest(ModuleLoader, unittest.TestCase):
                 # This is important, because it used to trigger
                 # a maximum recursion error.
                 bind = _bind(self)
-                return bind 
+                return bind
         A() #@
         ''')
         inferred = next(node.infer())

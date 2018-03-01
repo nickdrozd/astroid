@@ -39,10 +39,10 @@ class MyError(MyException):
 
 
 class AbstractClass(object):
-    
+
     def to_override(self, whatever):
         raise NotImplementedError()
-    
+
     def return_something(self, param):
         if param:
             return 'toto'
@@ -103,12 +103,12 @@ print('salut', end=' ', file=stream)
 
 def make_class(any, base=data.module.YO, *args, **kwargs):
     """check base is correctly resolved to Concrete0"""
-    
-    
+
+
     class Aaaa(base):
         """dynamic class"""
-        
-    
+
+
     return Aaaa
 from os.path import abspath
 import os as myos
@@ -127,12 +127,27 @@ def generator():
     """A generator."""
     yield
 
+lambda_generator = lambda: (yield)
+
+def generator_with_generators():
+    """A function that contains generators and is one."""
+
+    def generator():
+        yield
+
+    genl = lambda : (yield)
+
+    yield
+
+
 def not_a_generator():
     """A function that contains generator, but is not one."""
-    
+
     def generator():
         yield
     genl = lambda : (yield)
+
+not_a_lambda_generator = lambda: lambda: (yield)
 
 def with_metaclass(meta, *bases):
     return meta('NewBase', bases, {})
@@ -140,5 +155,3 @@ def with_metaclass(meta, *bases):
 
 class NotMetaclass(with_metaclass(Metaclass)):
     pass
-
-
