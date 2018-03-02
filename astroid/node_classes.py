@@ -1023,7 +1023,14 @@ class LookupMixIn(object):
             globals or builtin).
         :rtype: tuple(str, list(NodeNG))
         """
-        return self.scope().scope_lookup(self, name)
+        try:
+            return self._lookup[name]
+        except AttributeError:
+            self._lookup = {name: self.scope().scope_lookup(self, name)}
+            return self._lookup[name]
+        except KeyError:
+            self._lookup[name] = self.scope().scope_lookup(self, name)
+            return self._lookup[name]
 
     def ilookup(self, name):
         """Lookup the inferred values of the given variable.
