@@ -410,7 +410,11 @@ class NodeNG(object):
         :returns: The first parent statement.
         :rtype: NodeNG
         """
-        return self.parent.statement()
+        try:
+            return self._statement
+        except AttributeError:
+            self._statement = self.parent.statement()
+            return self._statement
 
     def frame(self):
         """The first parent frame node.
@@ -421,7 +425,11 @@ class NodeNG(object):
         :returns: The first parent frame node.
         :rtype: Module or FunctionDef or ClassDef
         """
-        return self.parent.frame()
+        try:
+            return self._frame
+        except AttributeError:
+            self._frame = self.parent.frame()
+            return self._frame
 
     def scope(self):
         """The first parent node defining a new scope.
@@ -429,7 +437,11 @@ class NodeNG(object):
         :returns: The first parent scope node.
         :rtype: Module or FunctionDef or ClassDef or Lambda or GenExpr
         """
-        return self.parent.scope()
+        try:
+            return self._scope
+        except AttributeError:
+            self._scope = self.parent.scope()
+            return self._scope
 
     def root(self):
         """Return the root node of the syntax tree.
