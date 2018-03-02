@@ -410,8 +410,6 @@ class NodeNG(object):
         :returns: The first parent statement.
         :rtype: NodeNG
         """
-        if self.is_statement:
-            return self
         return self.parent.statement()
 
     def frame(self):
@@ -885,6 +883,9 @@ class Statement(NodeNG):
 
     :type: bool
     """
+
+    def statement(self):
+        return self
 
     def next_sibling(self):
         """The next sibling statement node.
