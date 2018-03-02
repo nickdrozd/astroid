@@ -1534,7 +1534,13 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
         :returns: True is this is a generator function, False otherwise.
         :rtype: bool
         """
-        return next(self._get_yield_nodes_skip_lambdas(), False)
+        try:
+            return self._is_generator
+        except AttributeError:
+            self._is_generator = bool(
+                next(self._get_yield_nodes_skip_lambdas(), False))
+
+            return self._is_generator
 
     def infer_call_result(self, caller=None, context=None, context_lookup=None):
         """Infer what the function returns when called.
