@@ -23,13 +23,11 @@ from astroid import bases
 from astroid import context as contextmod
 from astroid import decorators
 from astroid import exceptions
-from astroid import manager
 from astroid import mixins
 from astroid import util
 
 
 BUILTINS = builtins_mod.__name__
-MANAGER = manager.AstroidManager()
 
 
 @decorators.raise_if_nothing_inferred
@@ -3831,7 +3829,8 @@ class Slice(NodeNG):
 
     @decorators.cachedproperty
     def _proxied(self):
-        builtins = MANAGER.astroid_cache[BUILTINS]
+        from astroid import manager
+        builtins = manager.AstroidManager().astroid_cache[BUILTINS]
         return builtins.getattr('slice')[0]
 
     def pytype(self):

@@ -7,6 +7,18 @@
 import collections
 import warnings
 
+from astroid.node_classes import (
+    Arguments, AssignAttr, Assert, Assign, AnnAssign,
+    AssignName, AugAssign, Repr, BinOp, BoolOp, Break, Call, Compare,
+    Comprehension, Const, Continue, Decorators, DelAttr, DelName, Delete,
+    Dict, Expr, Ellipsis, EmptyNode, ExceptHandler, Exec, ExtSlice, For,
+    ImportFrom, Attribute, Global, If, IfExp, Import, Index, Keyword,
+    List, Name, Nonlocal, Pass, Print, Raise, Return, Set, Slice, Starred, Subscript,
+    TryExcept, TryFinally, Tuple, UnaryOp, While, With, Yield, YieldFrom,
+    const_factory,
+    AsyncFor, Await, AsyncWith,
+    FormattedValue, JoinedStr,
+)
 
 class TransformVisitor(object):
     """A visitor for handling transforms.
@@ -45,11 +57,37 @@ class TransformVisitor(object):
         return node
 
     def _visit(self, node):
-        if hasattr(node, '_astroid_fields'):
+        if node is None or isinstance(node, str):
+            return node
+
+        if isinstance(node, (AssignName, Const, Import, Name, Pass)):
+            pass
+        elif isinstance(node, (Index, Keyword, Return)):
+            node.value = self._visit(node.value)
+        elif isinstance(node, Assign):
+            node.value = self._visit(node.value)
+            node.targets = [self._visit(elt) for elt in node.targets]
+        elif isinstance(node, Call):
+            node.func = self._visit(node.func)
+            node.args = [self._visit(elt) for elt in node.args]
+            if node.keywords is not None:
+                node.keywords = [self._visit(elt) for elt in node.keywords]
+        elif isinstance(node, Compare):
+            node.left = self._visit(node.left)
+            node.ops = [
+                (string, self._visit(child))
+                for (string, child) in node.ops
+            ]
+        elif isinstance(node, BinOp):
+            node.left = self._visit(node.left)
+            node.right = self._visit(node.right)
+        else:
+            # print(type(node))
             for field in node._astroid_fields:
                 value = getattr(node, field)
                 visited = self._visit_generic(value)
                 setattr(node, field, visited)
+
         return self._transform(node)
 
     def _visit_generic(self, node):

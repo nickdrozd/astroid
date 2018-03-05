@@ -21,8 +21,6 @@ from astroid import util
 
 objectmodel = util.lazy_import('interpreter.objectmodel')
 BUILTINS = six.moves.builtins.__name__
-manager = util.lazy_import('manager')
-MANAGER = manager.AstroidManager()
 
 if sys.version_info >= (3, 0):
     BUILTINS = 'builtins'
