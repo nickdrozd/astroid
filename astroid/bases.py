@@ -167,16 +167,14 @@ class BaseInstance(Proxy):
 
             # XXX frame should be self._proxied, or not ?
             get_attr = self.getattr(name, context, lookupclass=False)
-            for stmt in _infer_stmts(self._wrap_attr(get_attr, context),
-                                     context, frame=self):
-                yield stmt
+            yield from _infer_stmts(
+                self._wrap_attr(get_attr, context), context, frame=self)
         except exceptions.AttributeInferenceError:
             try:
                 # fallback to class.igetattr since it has some logic to handle
                 # descriptors
                 attrs = self._proxied.igetattr(name, context, class_context=False)
-                for stmt in self._wrap_attr(attrs, context):
-                    yield stmt
+                yield from self._wrap_attr(attrs, context)
             except exceptions.AttributeInferenceError as error:
                 util.reraise(exceptions.InferenceError(**vars(error)))
 
@@ -185,8 +183,7 @@ class BaseInstance(Proxy):
         for attr in attrs:
             if isinstance(attr, UnboundMethod):
                 if _is_property(attr):
-                    for inferred in attr.infer_call_result(self, context):
-                        yield inferred
+                    yield from attr.infer_call_result(self, context)
                 else:
                     yield BoundMethod(attr, self)
             elif hasattr(attr, 'name') and attr.name == '<lambda>':

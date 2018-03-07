@@ -42,8 +42,7 @@ def unpack_infer(stmt, context=None):
             if elt is util.Uninferable:
                 yield elt
                 continue
-            for inferred_elt in unpack_infer(elt, context):
-                yield inferred_elt
+            yield from unpack_infer(elt, context)
         # Explicit StopIteration to return error information, see comment
         # in raise_if_nothing_inferred.
         raise StopIteration(dict(node=stmt, context=context))
@@ -59,8 +58,7 @@ def unpack_infer(stmt, context=None):
         if inferred is util.Uninferable:
             yield inferred
         else:
-            for inf_inf in unpack_infer(inferred, context):
-                yield inf_inf
+            yield from unpack_infer(inferred, context)
     raise StopIteration(dict(node=stmt, context=context))
 
 
@@ -366,8 +364,7 @@ class NodeNG(object):
             if attr is None:
                 continue
             if isinstance(attr, (list, tuple)):
-                for elt in attr:
-                    yield elt
+                yield from attr
             else:
                 yield attr
 
@@ -641,24 +638,21 @@ class NodeNG(object):
 
         if skip_klass is None:
             for child_node in self.get_children():
-                for matching in child_node.nodes_of_class(klass, skip_klass):
-                    yield matching
+                yield from child_node.nodes_of_class(klass, skip_klass)
 
             return
 
         for child_node in self.get_children():
             if isinstance(child_node, skip_klass):
                 continue
-            for matching in child_node.nodes_of_class(klass, skip_klass):
-                yield matching
+            yield from child_node.nodes_of_class(klass, skip_klass)
 
     def _get_assign_nodes(self):
         yield from ()
 
     def _get_name_nodes(self):
         for child_node in self.get_children():
-            for matching in child_node._get_name_nodes():
-                yield matching
+            yield from child_node._get_name_nodes()
 
     def _get_return_nodes_skip_functions(self):
         yield from ()
@@ -1306,8 +1300,7 @@ class Name(LookupMixIn, NodeNG):
         yield self
 
         for child_node in self.get_children():
-            for matching in child_node._get_name_nodes():
-                yield matching
+            yield from child_node._get_name_nodes()
 
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
