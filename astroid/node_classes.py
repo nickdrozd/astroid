@@ -338,15 +338,19 @@ class NodeNG(object):
                          'fields': (',\n' + ' ' * alignment).join(result)}
 
     def __repr__(self):
-        rname = self._repr_name()
-        if rname:
-            string = '<%(cname)s.%(rname)s l.%(lineno)s at 0x%(id)x>'
-        else:
-            string = '<%(cname)s l.%(lineno)s at 0x%(id)x>'
-        return string % {'cname': type(self).__name__,
-                         'rname': rname,
-                         'lineno': self.fromlineno,
-                         'id': id(self)}
+        try:
+            return self._repr
+        except AttributeError:
+            rname = self._repr_name()
+            if rname:
+                string = '<%(cname)s.%(rname)s l.%(lineno)s at 0x%(id)x>'
+            else:
+                string = '<%(cname)s l.%(lineno)s at 0x%(id)x>'
+            self._repr = string % {'cname': type(self).__name__,
+                                   'rname': rname,
+                                   'lineno': self.fromlineno,
+                                   'id': id(self)}
+            return self._repr
 
     def accept(self, visitor):
         """Visit this node using the given visitor."""
