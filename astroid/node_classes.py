@@ -370,6 +370,32 @@ class NodeNG(object):
             else:
                 yield attr
 
+    def apply_transform(self, transform):
+        for field in self._astroid_fields:
+            value = getattr(self, field)
+            visited = self._apply_transform_generic(transform, value)
+            setattr(self, field, visited)
+
+        return transform(self)
+
+    def _apply_transform_generic(self, transform, node):
+        if node is None or isinstance(node, str):
+            return node
+
+        if isinstance(node, list):
+            return [
+                self._apply_transform_generic(transform, child)
+                for child in node
+            ]
+
+        if isinstance(node, tuple):
+            return tuple(
+                self._apply_transform_generic(transform, child)
+                for child in node
+            )
+
+        return node.apply_transform(transform)
+
     def last_child(self):
         """An optimized version of list(get_children())[-1]
 

@@ -41,25 +41,6 @@ class TransformVisitor(object):
                     break
         return node
 
-    def _visit(self, node):
-        for field in node._astroid_fields:
-            value = getattr(node, field)
-            visited = self._visit_generic(value)
-            setattr(node, field, visited)
-
-        return self._transform(node)
-
-    def _visit_generic(self, node):
-        if node is None or isinstance(node, str):
-            return node
-
-        if isinstance(node, list):
-            return [self._visit_generic(child) for child in node]
-        if isinstance(node, tuple):
-            return tuple(self._visit_generic(child) for child in node)
-
-        return self._visit(node)
-
     def register_transform(self, node_class, transform, predicate=None):
         """Register `transform(node)` function to be applied on the given
         astroid's `node_class` if `predicate` is None or returns true
@@ -80,5 +61,9 @@ class TransformVisitor(object):
         Only the nodes which have transforms registered will actually
         be replaced or changed.
         """
-        module.body = [self._visit(child) for child in module.body]
+        module.body = [
+            child.apply_transform(self._transform)
+            for child in module.body
+        ]
+
         return self._transform(module)
