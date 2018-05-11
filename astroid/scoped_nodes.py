@@ -789,6 +789,13 @@ class GeneratorExp(ComprehensionScope):
 
         yield from self.generators
 
+    def apply_transform(self, transform):
+        self.elt = self.elt.apply_transform(transform)
+
+        self.generators = [elt.apply_transform(transform) for elt in self.generators]
+
+        return transform(self)
+
 
 class DictComp(ComprehensionScope):
     """Class representing an :class:`ast.DictComp` node.
@@ -869,6 +876,14 @@ class DictComp(ComprehensionScope):
 
         yield from self.generators
 
+    def apply_transform(self, transform):
+        self.key = self.key.apply_transform(transform)
+        self.value = self.value.apply_transform(transform)
+
+        self.generators = [elt.apply_transform(transform) for elt in self.generators]
+
+        return transform(self)
+
 
 class SetComp(ComprehensionScope):
     """Class representing an :class:`ast.SetComp` node.
@@ -939,6 +954,13 @@ class SetComp(ComprehensionScope):
 
         yield from self.generators
 
+    def apply_transform(self, transform):
+        self.elt = self.elt.apply_transform(transform)
+
+        self.generators = [elt.apply_transform(transform) for elt in self.generators]
+
+        return transform(self)
+
 
 class _ListComp(node_classes.NodeNG):
     """Class representing an :class:`ast.ListComp` node.
@@ -984,6 +1006,13 @@ class _ListComp(node_classes.NodeNG):
         yield self.elt
 
         yield from self.generators
+
+    def apply_transform(self, transform):
+        self.elt = self.elt.apply_transform(transform)
+
+        self.generators = [elt.apply_transform(transform) for elt in self.generators]
+
+        return transform(self)
 
 
 class ListComp(_ListComp, ComprehensionScope):
@@ -1205,6 +1234,12 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
     def get_children(self):
         yield self.args
         yield self.body
+
+    def apply_transform(self, transform):
+        self.args = self.args.apply_transform(transform)
+        self.body = self.body.apply_transform(transform)
+
+        return transform(self)
 
 
 class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
@@ -1634,6 +1669,19 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
             yield self.returns
 
         yield from self.body
+
+    def apply_transform(self, transform):
+        self.args = self.args.apply_transform(transform)
+
+        if self.decorators is not None:
+            self.decorators = self.decorators.apply_transform(transform)
+
+        if self.returns is not None:
+            self.returns = self.returns.apply_transform(transform)
+
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+
+        return transform(self)
 
 
 class AsyncFunctionDef(FunctionDef):
@@ -2725,3 +2773,12 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
     def _get_assign_nodes(self):
         for child_node in self.body:
             yield from child_node._get_assign_nodes()
+
+    def apply_transform(self, transform):
+        if self.decorators is not None:
+            self.decorators = self.decorators.apply_transform(transform)
+
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+        self.bases = [elt.apply_transform(transform) for elt in self.bases]
+
+        return transform(self)

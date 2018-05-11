@@ -149,3 +149,6 @@ class NoChildrenMixin:
     """Mixin for nodes with no children, e.g. Pass."""
     def get_children(self):
         yield from ()
+
+    def apply_transform(self, transform):
+        return transform(self)

@@ -379,6 +379,9 @@ class NodeNG(object):
         return transform(self)
 
     def _apply_transform_generic(self, transform, node):
+        if isinstance(node, NodeNG):
+            return node.apply_transform(transform)
+
         if node is None or isinstance(node, str):
             return node
 
@@ -393,8 +396,6 @@ class NodeNG(object):
                 self._apply_transform_generic(transform, child)
                 for child in node
             )
-
-        return node.apply_transform(transform)
 
     def last_child(self):
         """An optimized version of list(get_children())[-1]
@@ -1000,6 +1001,11 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
     def get_children(self):
         yield from self.elts
 
+    def apply_transform(self, transform):
+        self.elts = [transform(elt) for elt in self.elts]
+
+        return transform(self)
+
 
 class LookupMixIn(object):
     """Mixin to look up a name in the right scope."""
@@ -1556,6 +1562,39 @@ class Arguments(mixins.AssignTypeMixin, NodeNG):
             if elt is not None:
                 yield elt
 
+    def apply_transform(self, transform):
+        if self.args:
+            self.args = [elt.apply_transform(transform) for elt in self.args]
+
+        self.defaults = [elt.apply_transform(transform) for elt in self.defaults]
+        self.kwonlyargs = [elt.apply_transform(transform) for elt in self.kwonlyargs]
+
+        self.kw_defaults = [
+            elt.apply_transform(transform)
+            if elt is not None else None
+            for elt in self.kw_defaults
+        ]
+
+        self.annotations = [
+            elt.apply_transform(transform)
+            if elt is not None else None
+            for elt in self.annotations
+        ]
+
+        self.kwonlyargs_annotations = [
+            elt.apply_transform(transform)
+            if elt is not None else None
+            for elt in self.kwonlyargs_annotations
+        ]
+
+        if self.varargannotation is not None:
+            self.varargannotation = self.varargannotation.apply_transform(transform)
+
+        if self.kwargannotation is not None:
+            self.kwargannotation = self.kwargannotation.apply_transform(transform)
+
+        return transform(self)
+
 
 def _find_arg(argname, args, rec=False):
     for i, arg in enumerate(args):
@@ -1646,6 +1685,11 @@ class AssignAttr(mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         yield self.expr
 
+    def apply_transform(self, transform):
+        self.expr = transform(self.expr)
+
+        return transform(self)
+
 
 class Assert(Statement):
     """Class representing an :class:`ast.Assert` node.
@@ -1685,6 +1729,14 @@ class Assert(Statement):
 
         if self.fail is not None:
             yield self.fail
+
+    def apply_transform(self, transform):
+        self.test = transform(self.test)
+
+        if self.fail is not None:
+            self.fail = transform(self.fail)
+
+        return transform(self)
 
 
 class Assign(mixins.AssignTypeMixin, Statement):
@@ -1737,6 +1789,15 @@ class Assign(mixins.AssignTypeMixin, Statement):
         yield self
 
         yield from self.value._get_assign_nodes()
+
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+        self.targets = [
+            target.apply_transform(transform)
+            for target in self.targets
+        ]
+
+        return transform(self)
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -1799,6 +1860,15 @@ class AnnAssign(mixins.AssignTypeMixin, Statement):
 
         if self.value is not None:
             yield self.value
+
+    def apply_transform(self, transform):
+        if self.value is not None:
+            self.value = self.value.apply_transform(transform)
+
+        self.target = self.target.apply_transform(transform)
+        self.annotation = self.annotation.apply_transform(transform)
+
+        return transform(self)
 
 
 class AugAssign(mixins.AssignTypeMixin, Statement):
@@ -1884,6 +1954,12 @@ class AugAssign(mixins.AssignTypeMixin, Statement):
     def get_children(self):
         yield self.target
         yield self.value
+
+    def apply_transform(self, transform):
+        self.target = transform(self.target)
+        self.value = self.value.apply_transform(transform)
+
+        return transform(self)
 
 
 class Repr(NodeNG):
@@ -1993,6 +2069,12 @@ class BinOp(NodeNG):
         yield self.left
         yield self.right
 
+    def apply_transform(self, transform):
+        self.left = self.left.apply_transform(transform)
+        self.right = self.right.apply_transform(transform)
+
+        return transform(self)
+
 
 class BoolOp(NodeNG):
     """Class representing an :class:`ast.BoolOp` node.
@@ -2044,6 +2126,11 @@ class BoolOp(NodeNG):
 
     def get_children(self):
         yield from self.values
+
+    def apply_transform(self, transform):
+        self.values = [transform(value) for value in self.values]
+
+        return transform(self)
 
 
 class Break(mixins.NoChildrenMixin, Statement):
@@ -2122,6 +2209,18 @@ class Call(NodeNG):
 
         yield from self.keywords or ()
 
+    def apply_transform(self, transform):
+        self.func = self.func.apply_transform(transform)
+        self.args = [arg.apply_transform(transform) for arg in self.args]
+
+        if self.keywords is not None:
+            self.keywords = [
+                keyword.apply_transform(transform)
+                for keyword in self.keywords
+            ]
+
+        return transform(self)
+
 
 class Compare(NodeNG):
     """Class representing an :class:`ast.Compare` node.
@@ -2182,6 +2281,16 @@ class Compare(NodeNG):
         # XXX maybe if self.ops:
         return self.ops[-1][1]
         #return self.left
+
+    def apply_transform(self, transform):
+        self.left = self.left.apply_transform(transform)
+
+        self.ops = [
+            (string, comparator.apply_transform(transform))
+            for (string, comparator) in self.ops
+        ]
+
+        return transform(self)
 
 
 class Comprehension(NodeNG):
@@ -2281,6 +2390,13 @@ class Comprehension(NodeNG):
         yield self.iter
 
         yield from self.ifs
+
+    def apply_transform(self, transform):
+        self.target = transform(self.target)
+        self.iter = transform(self.iter)
+        self.ifs = [elt.apply_transform(transform) for elt in self.ifs]
+
+        return transform(self)
 
 
 class Const(mixins.NoChildrenMixin, NodeNG, bases.Instance):
@@ -2447,6 +2563,11 @@ class Decorators(NodeNG):
     def get_children(self):
         yield from self.nodes
 
+    def apply_transform(self, transform):
+        self.nodes = [node.apply_transform(transform) for node in self.nodes]
+
+        return transform(self)
+
 
 class DelAttr(mixins.ParentAssignTypeMixin, NodeNG):
     """Variation of :class:`ast.Delete` representing deletion of an attribute.
@@ -2499,6 +2620,11 @@ class DelAttr(mixins.ParentAssignTypeMixin, NodeNG):
     def get_children(self):
         yield self.expr
 
+    def apply_transform(self, transform):
+        self.expr = self.expr.apply_transform(transform)
+
+        return transform(self)
+
 
 class Delete(mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.Delete` node.
@@ -2526,6 +2652,11 @@ class Delete(mixins.AssignTypeMixin, Statement):
 
     def get_children(self):
         yield from self.targets
+
+    def apply_transform(self, transform):
+        self.targets = [transform(target) for target in self.targets]
+
+        return transform(self)
 
 
 class Dict(NodeNG, bases.Instance):
@@ -2605,6 +2736,14 @@ class Dict(NodeNG, bases.Instance):
         for key, value in self.items:
             yield key
             yield value
+
+    def apply_transform(self, transform):
+        self.items = [
+            (key.apply_transform(transform), value.apply_transform(transform))
+            for (key, value) in self.items
+        ]
+
+        return transform(self)
 
     def last_child(self):
         """An optimized version of list(get_children())[-1]
@@ -2694,6 +2833,11 @@ class Expr(Statement):
         if not self.value.is_lambda:
             yield from self.value._get_yield_nodes_skip_lambdas()
 
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+
+        return transform(self)
+
 
 class Ellipsis(mixins.NoChildrenMixin, NodeNG): # pylint: disable=redefined-builtin
     """Class representing an :class:`ast.Ellipsis` node.
@@ -2764,6 +2908,17 @@ class ExceptHandler(mixins.MultiLineBlockMixin,
             yield self.name
 
         yield from self.body
+
+    def apply_transform(self, transform):
+        if self.type is not None:
+            self.type = self.type.apply_transform(transform)
+
+        if self.name is not None:
+            self.name = self.name.apply_transform(transform)
+
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+
+        return transform(self)
 
     # pylint: disable=redefined-builtin; had to use the same name as builtin ast module.
     def postinit(self, type=None, name=None, body=None):
@@ -2961,6 +3116,14 @@ class For(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn,
         yield from self.body
         yield from self.orelse
 
+    def apply_transform(self, transform):
+        self.target = transform(self.target)
+        self.iter = transform(self.iter)
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+        self.orelse = [elt.apply_transform(transform) for elt in self.orelse]
+
+        return transform(self)
+
 
 class AsyncFor(For):
     """Class representing an :class:`ast.AsyncFor` node.
@@ -3014,6 +3177,11 @@ class Await(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def apply_transform(self, transform):
+        self.value = transform(self.value)
+
+        return transform(self)
 
 
 class ImportFrom(mixins.NoChildrenMixin, mixins.ImportFromMixin, Statement):
@@ -3119,6 +3287,11 @@ class Attribute(NodeNG):
 
     def get_children(self):
         yield self.expr
+
+    def apply_transform(self, transform):
+        self.expr = transform(self.expr)
+
+        return transform(self)
 
 
 class Global(mixins.NoChildrenMixin, Statement):
@@ -3229,6 +3402,13 @@ class If(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
         yield from self.body
         yield from self.orelse
 
+    def apply_transform(self, transform):
+        self.test = self.test.apply_transform(transform)
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+        self.orelse = [elt.apply_transform(transform) for elt in self.orelse]
+
+        return transform(self)
+
 
 class IfExp(NodeNG):
     """Class representing an :class:`ast.IfExp` node.
@@ -3274,6 +3454,13 @@ class IfExp(NodeNG):
         yield self.test
         yield self.body
         yield self.orelse
+
+    def apply_transform(self, transform):
+        self.test = self.test.apply_transform(transform)
+        self.body = self.body.apply_transform(transform)
+        self.orelse = self.orelse.apply_transform(transform)
+
+        return transform(self)
 
 
 class Import(mixins.NoChildrenMixin, mixins.ImportFromMixin, Statement):
@@ -3341,6 +3528,11 @@ class Index(NodeNG):
     def get_children(self):
         yield self.value
 
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+
+        return transform(self)
+
 
 class Keyword(NodeNG):
     """Class representing an :class:`ast.keyword` node.
@@ -3392,6 +3584,11 @@ class Keyword(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+
+        return transform(self)
 
 
 class List(_BaseContainer):
@@ -3601,6 +3798,15 @@ class Raise(Statement):
         if self.cause is not None:
             yield self.cause
 
+    def apply_transform(self, transform):
+        if self.exc is not None:
+            self.exc = self.exc.apply_transform(transform)
+
+        if self.cause is not None:
+            self.cause = self.cause.apply_transform(transform)
+
+        return transform(self)
+
 
 class Return(Statement):
     """Class representing an :class:`ast.Return` node.
@@ -3630,6 +3836,12 @@ class Return(Statement):
 
     def _get_return_nodes_skip_functions(self):
         yield self
+
+    def apply_transform(self, transform):
+        if self.value is not None:
+            self.value = self.value.apply_transform(transform)
+
+        return transform(self)
 
 
 class Set(_BaseContainer):
@@ -3743,6 +3955,18 @@ class Slice(NodeNG):
         if self.step is not None:
             yield self.step
 
+    def apply_transform(self, transform):
+        if self.lower is not None:
+            self.lower = transform(self.lower)
+
+        if self.upper is not None:
+            self.upper = transform(self.upper)
+
+        if self.step is not None:
+            self.step = transform(self.step)
+
+        return transform(self)
+
 
 class Starred(mixins.ParentAssignTypeMixin, NodeNG):
     """Class representing an :class:`ast.Starred` node.
@@ -3793,6 +4017,11 @@ class Starred(mixins.ParentAssignTypeMixin, NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+
+        return transform(self)
 
 
 class Subscript(NodeNG):
@@ -3855,6 +4084,12 @@ class Subscript(NodeNG):
     def get_children(self):
         yield self.value
         yield self.slice
+
+    def apply_transform(self, transform):
+        self.value = self.value.apply_transform(transform)
+        self.slice = self.slice.apply_transform(transform)
+
+        return transform(self)
 
 
 class TryExcept(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
@@ -3932,6 +4167,17 @@ class TryExcept(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
         yield from self.handlers or ()
         yield from self.orelse or ()
 
+    def apply_transform(self, transform):
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+
+        if self.handlers is not None:
+            self.handlers = [elt.apply_transform(transform) for elt in self.handlers]
+
+        if self.orelse is not None:
+            self.orelse = [elt.apply_transform(transform) for elt in self.orelse]
+
+        return transform(self)
+
 
 class TryFinally(mixins.MultiLineBlockMixin,
                  mixins.BlockRangeMixIn, Statement):
@@ -3993,6 +4239,12 @@ class TryFinally(mixins.MultiLineBlockMixin,
     def get_children(self):
         yield from self.body
         yield from self.finalbody
+
+    def apply_transform(self, transform):
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+        self.finalbody = [elt.apply_transform(transform) for elt in self.finalbody]
+
+        return transform(self)
 
 
 class Tuple(_BaseContainer):
@@ -4115,6 +4367,11 @@ class UnaryOp(NodeNG):
     def get_children(self):
         yield self.operand
 
+    def apply_transform(self, transform):
+        self.operand = transform(self.operand)
+
+        return transform(self)
+
 
 class While(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.While` node.
@@ -4186,6 +4443,14 @@ class While(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
         yield from self.body
         yield from self.orelse
 
+    def apply_transform(self, transform):
+        self.test = self.test.apply_transform(transform)
+
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+        self.orelse = [elt.apply_transform(transform) for elt in self.orelse]
+
+        return transform(self)
+
 
 class With(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn,
            mixins.AssignTypeMixin, Statement):
@@ -4251,6 +4516,16 @@ class With(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn,
                 yield var
         yield from self.body
 
+    def apply_transform(self, transform):
+        self.body = [elt.apply_transform(transform) for elt in self.body]
+
+        self.items = [
+            (expr.apply_transform(transform), var)
+            for (expr, var) in self.items
+        ]
+
+        return transform(self)
+
 
 class AsyncWith(With):
     """Asynchronous ``with`` built with the ``async`` keyword."""
@@ -4284,6 +4559,12 @@ class Yield(NodeNG):
 
     def _get_yield_nodes_skip_lambdas(self):
         yield self
+
+    def apply_transform(self, transform):
+        if self.value is not None:
+            self.value = transform(self.value)
+
+        return transform(self)
 
 
 class YieldFrom(Yield):
@@ -4350,6 +4631,14 @@ class FormattedValue(NodeNG):
         if self.format_spec is not None:
             yield self.format_spec
 
+    def apply_transform(self, transform):
+        self.value = transform(self.value)
+
+        if self.format_spec is not None:
+            self.format_spec = transform(self.format_spec)
+
+        return transform(self)
+
 
 class JoinedStr(NodeNG):
     """Represents a list of string expressions to be joined.
@@ -4376,6 +4665,11 @@ class JoinedStr(NodeNG):
 
     def get_children(self):
         yield from self.values
+
+    def apply_transform(self, transform):
+        self.values = [transform(elt) for elt in self.values]
+
+        return transform(self)
 
 
 class Unknown(mixins.AssignTypeMixin, NodeNG):
