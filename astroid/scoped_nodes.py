@@ -2655,8 +2655,16 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         """
         return True
 
+    def get_children(self):
+        if self.decorators is not None:
+            yield self.decorators
 
-# Backwards-compatibility aliases
-Class = util.proxy_alias('Class', ClassDef)
-Function = util.proxy_alias('Function', FunctionDef)
-GenExpr = util.proxy_alias('GenExpr', GeneratorExp)
+        for elt in self.bases:
+            yield elt
+
+        for elt in self.body:
+            yield elt
+
+    def _get_assign_nodes(self):
+        for child_node in self.body:
+            yield from child_node._get_assign_nodes()
