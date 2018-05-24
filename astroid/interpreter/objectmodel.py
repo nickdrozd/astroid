@@ -49,7 +49,7 @@ def _dunder_dict(instance, attributes):
     return obj
 
 
-class ObjectModel(object):
+class ObjectModel:
 
     def __init__(self):
         self._instance = None
@@ -288,6 +288,12 @@ class FunctionModel(ObjectModel):
 
         class DescriptorBoundMethod(bases.BoundMethod):
             """Bound method which knows how to understand calling descriptor binding."""
+
+            def implicit_parameters(self):
+                # Different than BoundMethod since the signature
+                # is different.
+                return 0
+
             def infer_call_result(self, caller, context=None, context_lookup=None):
                 if len(caller.args) != 2:
                     raise exceptions.InferenceError(
@@ -296,6 +302,11 @@ class FunctionModel(ObjectModel):
 
                 context = contextmod.copy_context(context)
                 cls = next(caller.args[0].infer(context=context))
+
+                if cls is astroid.Uninferable:
+                    raise exceptions.InferenceError(
+                        "Invalid class inferred",
+                        target=self, context=context)
 
                 # Rebuild the original value, but with the parent set as the
                 # class where it will be bound.
@@ -309,6 +320,31 @@ class FunctionModel(ObjectModel):
                 # Build a proper bound method that points to our newly built function.
                 proxy = bases.UnboundMethod(new_func)
                 yield bases.BoundMethod(proxy=proxy, bound=cls)
+
+            @property
+            def args(self):
+                """Overwrite the underlying args to match those of the underlying func
+
+                Usually the underlying *func* is a function/method, as in:
+
+                    def test(self):
+                        pass
+
+                This has only the *self* parameter but when we access test.__get__
+                we get a new object which has two parameters, *self* and *type*.
+                """
+                nonlocal func
+                params = func.args.args.copy()
+                params.append(astroid.AssignName(name='type'))
+                arguments = astroid.Arguments(parent=func.args.parent,)
+                arguments.postinit(
+                    args=params,
+                    defaults=[],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    annotations=[],
+                )
+                return arguments
 
         return DescriptorBoundMethod(proxy=self._instance, bound=self._instance)
 

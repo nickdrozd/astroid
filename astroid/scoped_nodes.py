@@ -18,7 +18,6 @@ import builtins
 import sys
 import io
 import itertools
-import warnings
 from typing import Optional, List
 
 from astroid import bases
@@ -420,8 +419,6 @@ class Module(LocalsDictNodeNG):
     def stream(self):
         """Get a stream to the underlying file or bytes.
 
-        .. deprecated:: 1.5
-
         :type: file or io.BytesIO or None
         """
         return self._get_stream()
@@ -489,10 +486,12 @@ class Module(LocalsDictNodeNG):
         elif self.package:
             try:
                 result = [self.import_module(name, relative_only=True)]
-            except (exceptions.AstroidBuildingError, SyntaxError):
-                util.reraise(exceptions.AttributeInferenceError(target=self,
-                                                                attribute=name,
-                                                                context=context))
+            except (exceptions.AstroidBuildingError, SyntaxError) as exc:
+                raise exceptions.AttributeInferenceError(
+                    target=self,
+                    attribute=name,
+                    context=context,
+                ) from exc
         result = [n for n in result if not isinstance(n, node_classes.DelName)]
         if result:
             return result
@@ -516,8 +515,12 @@ class Module(LocalsDictNodeNG):
             return bases._infer_stmts(self.getattr(name, context),
                                       context, frame=self)
         except exceptions.AttributeInferenceError as error:
-            util.reraise(exceptions.InferenceError(
-                error.message, target=self, attribute=name, context=context))
+            raise exceptions.InferenceError(
+                error.message,
+                target=self,
+                attribute=name,
+                context=context,
+            ) from error
 
     def fully_defined(self):
         """Check if this module has been build from a .py file.
@@ -544,7 +547,6 @@ class Module(LocalsDictNodeNG):
         :returns: The previous sibling statement node.
         :rtype: NodeNG or None
         """
-        return
 
     def next_sibling(self):
         """The next sibling statement node.
@@ -552,7 +554,6 @@ class Module(LocalsDictNodeNG):
         :returns: The next sibling statement node.
         :rtype: NodeNG or None
         """
-        return
 
     _absolute_import_activated = True
 
@@ -989,9 +990,6 @@ def _infer_decorator_callchain(node):
     if not node.parent:
         return None
     try:
-        # TODO: We don't handle multiple inference results right now,
-        #       because there's no flow to reason when the return
-        #       is what we are looking for, a static or a class method.
         result = next(node.infer_call_result(node.parent))
     except (StopIteration, exceptions.InferenceError):
         return None
@@ -1015,6 +1013,9 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
     _astroid_fields = ('args', 'body',)
     _other_other_fields = ('locals',)
     name = '<lambda>'
+
+    def implicit_parameters(self):
+        return 0
 
     # function's type, 'function' | 'method' | 'staticmethod' | 'classmethod'
     @property
@@ -1206,9 +1207,26 @@ class FunctionDef(node_classes.Statement, Lambda):
 
     :type: bool
     """
+    type_annotation = None
+    """If present, this will contain the type annotation passed by a type comment
+
+    :type: NodeNG or None
+    """
+    type_comment_args = None
+    """
+    If present, this will contain the type annotation for arguments
+    passed by a type comment
+    """
+    type_comment_returns = None
+    """If present, this will contain the return type annotation, passed by a type comment"""
     # attributes below are set by the builder module or by raw factories
     _other_fields = ('name', 'doc')
-    _other_other_fields = ('locals', '_type')
+    _other_other_fields = (
+        'locals',
+        '_type',
+        'type_comment_returns',
+        'type_comment_args',
+    )
     _type = None
 
     def __init__(self, name=None, doc=None, lineno=None,
@@ -1249,7 +1267,11 @@ class FunctionDef(node_classes.Statement, Lambda):
             frame.set_local(name, self)
 
     # pylint: disable=arguments-differ; different than Lambdas
-    def postinit(self, args, body, decorators=None, returns=None):
+    def postinit(self, args, body,
+                 decorators=None,
+                 returns=None,
+                 type_comment_returns=None,
+                 type_comment_args=None):
         """Do some setup after initialisation.
 
         :param args: The arguments that the function takes.
@@ -1261,11 +1283,17 @@ class FunctionDef(node_classes.Statement, Lambda):
         :param decorators: The decorators that are applied to this
             method or function.
         :type decorators: Decorators or None
+        :params type_comment_returns:
+            The return type annotation passed via a type comment.
+        :params type_comment_args:
+            The args type annotation passed via a type comment.
         """
         self.args = args
         self.body = body
         self.decorators = decorators
         self.returns = returns
+        self.type_comment_returns = type_comment_returns
+        self.type_comment_args = type_comment_args
 
         if isinstance(self.parent.frame(), ClassDef):
             self.set_local('__class__', self.parent.frame())
@@ -1329,10 +1357,10 @@ class FunctionDef(node_classes.Statement, Lambda):
         if isinstance(frame, ClassDef):
             if self.name == '__new__':
                 return 'classmethod'
-            elif sys.version_info >= (3, 6) and self.name == '__init_subclass__':
+            if sys.version_info >= (3, 6) and self.name == '__init_subclass__':
                 return 'classmethod'
-            else:
-                type_name = 'method'
+
+            type_name = 'method'
 
         if not self.decorators:
             return type_name
@@ -1369,7 +1397,7 @@ class FunctionDef(node_classes.Statement, Lambda):
                             continue
                         if ancestor.is_subtype_of('%s.classmethod' % BUILTINS):
                             return 'classmethod'
-                        elif ancestor.is_subtype_of('%s.staticmethod' % BUILTINS):
+                        if ancestor.is_subtype_of('%s.staticmethod' % BUILTINS):
                             return 'staticmethod'
             except exceptions.InferenceError:
                 pass
@@ -1425,8 +1453,12 @@ class FunctionDef(node_classes.Statement, Lambda):
             return bases._infer_stmts(self.getattr(name, context),
                                       context, frame=self)
         except exceptions.AttributeInferenceError as error:
-            util.reraise(exceptions.InferenceError(
-                error.message, target=self, attribute=name, context=context))
+            raise exceptions.InferenceError(
+                error.message,
+                target=self,
+                attribute=name,
+                context=context,
+            ) from error
 
     def is_method(self):
         """Check if this function node represents a method.
@@ -1528,22 +1560,30 @@ class FunctionDef(node_classes.Statement, Lambda):
                 self.args.vararg is not None):
             metaclass = next(caller.args[0].infer(context))
             if isinstance(metaclass, ClassDef):
-                c = ClassDef('temporary_class', None)
-                c.hide = True
-                c.parent = self
-                class_bases = [next(b.infer(context)) for b in caller.args[1:]]
-                c.bases = [base for base in class_bases if base != util.Uninferable]
-                c._metaclass = metaclass
-                yield c
+                class_bases = [next(arg.infer(context)) for arg in caller.args[1:]]
+                new_class = ClassDef(name='temporary_class')
+                new_class.hide = True
+                new_class.parent = self
+                new_class.postinit(
+                    bases=[base for base in class_bases if base != util.Uninferable],
+                    body=[],
+                    decorators=[],
+                    metaclass=metaclass,
+                )
+                yield new_class
                 return
         returns = self.nodes_of_class(node_classes.Return, skip_klass=FunctionDef)
-        for returnnode in returns:
+
+        first_return = next(returns, None)
+        if not first_return:
+            raise exceptions.InferenceError('Empty return iterator')
+
+        for returnnode in itertools.chain((first_return,), returns):
             if returnnode.value is None:
                 yield node_classes.Const(None)
             else:
                 try:
-                    for inferred in returnnode.value.infer(context):
-                        yield inferred
+                    yield from returnnode.value.infer(context)
                 except exceptions.InferenceError:
                     yield util.Uninferable
 
@@ -1781,6 +1821,9 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         for local_name, node in self.implicit_locals():
             self.add_local_node(node, local_name)
 
+    def implicit_parameters(self):
+        return 1
+
     def implicit_locals(self):
         """Get implicitly defined class definition locals.
 
@@ -1955,7 +1998,23 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 and len(caller.args) == 3):
             result = self._infer_type_call(caller, context)
             yield result
+            return
+
+        dunder_call = None
+        try:
+            metaclass = self.metaclass(context=context)
+            if metaclass is not None:
+                dunder_call = next(metaclass.igetattr("__call__", context))
+        except exceptions.AttributeInferenceError:
+            pass
+        if (dunder_call is not None and
+                dunder_call.qname() != "builtins.type.__call__"):
+            context = contextmod.bind_context_to_node(context, self)
+            yield from dunder_call.infer_call_result(
+                caller, context, context_lookup)
         else:
+            # Call type.__call__ if not set metaclass
+            # (since type is the default metaclass)
             yield bases.Instance(self)
 
     def scope_lookup(self, node, name, offset=0):
@@ -2167,21 +2226,6 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         """
         return bases.Instance(self)
 
-    def instanciate_class(self):
-        """A deprecated alias for :meth:`instanciate_class`.
-
-        .. deprecated:: 1.5
-
-        :returns: An :class:`Instance` of the :class:`ClassDef` node,
-            or self if this is not possible.
-        :rtype: Instance or ClassDef
-        """
-        warnings.warn('%s.instanciate_class() is deprecated and slated for '
-                      'removal in astroid 2.0, use %s.instantiate_class() '
-                      'instead.' % (type(self).__name__, type(self).__name__),
-                      PendingDeprecationWarning, stacklevel=2)
-        return self.instantiate_class()
-
     def getattr(self, name, context=None, class_context=True):
         """Get an attribute from this class, using Python's attribute semantic.
 
@@ -2255,9 +2299,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 continue
 
             if bases._is_property(attr):
-                # TODO(cpopa): don't use a private API.
-                for inferred in attr.infer_call_result(self, context):
-                    yield inferred
+                yield from attr.infer_call_result(self, context)
                 continue
             if attr.type == 'classmethod':
                 # If the method is a classmethod, then it will
@@ -2304,8 +2346,12 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 # class handle some dynamic attributes, return a Uninferable object
                 yield util.Uninferable
             else:
-                util.reraise(exceptions.InferenceError(
-                    error.message, target=self, attribute=name, context=context))
+                raise exceptions.InferenceError(
+                    error.message,
+                    target=self,
+                    attribute=name,
+                    context=context,
+                )
 
     def has_dynamic_getattr(self, context=None):
         """Check if the class has a custom __getattr__ or __getattribute__.
@@ -2347,23 +2393,13 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         try:
             methods = dunder_lookup.lookup(self, '__getitem__')
         except exceptions.AttributeInferenceError as exc:
-            util.reraise(
-                exceptions.AstroidTypeError(
-                    node=self, error=exc,
-                    context=context
-                )
-            )
+            raise exceptions.AstroidTypeError(node=self, context=context) from exc
 
         method = methods[0]
 
         # Create a new callcontext for providing index as an argument.
-        if context:
-            new_context = context.clone()
-        else:
-            new_context = contextmod.InferenceContext()
-
+        new_context = contextmod.bind_context_to_node(context, self)
         new_context.callcontext = contextmod.CallContext(args=[index])
-        new_context.boundnode = self
 
         return next(method.infer_call_result(self, new_context))
 
@@ -2406,7 +2442,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         return None
 
     _metaclass = None
-    def declared_metaclass(self):
+    def declared_metaclass(self, context=None):
         """Return the explicit declared metaclass for the current class.
 
         An explicit declared metaclass is defined
@@ -2421,7 +2457,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         """
         for base in self.bases:
             try:
-                for baseobj in base.infer():
+                for baseobj in base.infer(context=context):
                     if isinstance(baseobj, ClassDef) and baseobj.hide:
                         self._metaclass = baseobj._metaclass
                         self._metaclass_hack = True
@@ -2432,28 +2468,28 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         if self._metaclass:
             # Expects this from Py3k TreeRebuilder
             try:
-                return next(node for node in self._metaclass.infer()
+                return next(node for node in self._metaclass.infer(context=context)
                             if node is not util.Uninferable)
             except (exceptions.InferenceError, StopIteration):
                 return None
 
         return None
 
-    def _find_metaclass(self, seen=None):
+    def _find_metaclass(self, seen=None, context=None):
         if seen is None:
             seen = set()
         seen.add(self)
 
-        klass = self.declared_metaclass()
+        klass = self.declared_metaclass(context=context)
         if klass is None:
-            for parent in self.ancestors():
+            for parent in self.ancestors(context=context):
                 if parent not in seen:
                     klass = parent._find_metaclass(seen)
                     if klass is not None:
                         break
         return klass
 
-    def metaclass(self):
+    def metaclass(self, context=None):
         """Get the metaclass of this class.
 
         If this class does not define explicitly a metaclass,
@@ -2463,7 +2499,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         :returns: The metaclass of this class.
         :rtype: NodeNG or None
         """
-        return self._find_metaclass()
+        return self._find_metaclass(context=context)
 
     def has_metaclass_hack(self):
         return self._metaclass_hack
@@ -2554,8 +2590,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                 except NotImplementedError:
                     continue
                 if cls_slots is not None:
-                    for slot in cls_slots:
-                        yield slot
+                    yield from cls_slots
                 else:
                     yield None
 
@@ -2570,8 +2605,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         return sorted(slots, key=lambda item: item.value)
 
     def _inferred_bases(self, context=None):
-        # TODO(cpopa): really similar with .ancestors,
-        # but the difference is when one base is inferred,
+        # Similar with .ancestors, but the difference is when one base is inferred,
         # only the first object is wanted. That's because
         # we aren't interested in superclasses, as in the following
         # example:
@@ -2602,8 +2636,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
             if not baseobj.hide:
                 yield baseobj
             else:
-                for base in baseobj.bases:
-                    yield base
+                yield from baseobj.bases
 
     def _compute_mro(self, context=None):
         inferred_bases = list(self._inferred_bases(context=context))

@@ -1,74 +1,111 @@
 .. _inference:
 
-===================================
-  Inference on the AST in Astroid
-===================================
-
-Introduction
-============
+Inference Introduction
+======================
 
 What/where is 'inference' ?
 ---------------------------
 
-Well, not *inference* in general, but inference within *astroid* in
-particular... Basically this is extracting information about a node of
-the AST from the node's context so as to make its description
-richer. For example it can be most useful to know that this
-identifier node *toto* can have values among 1, 2.0, and "yesterday".
 
-The inference process entry-point is the :meth:`NodeNG.infer` method
-of the AST nodes which is defined in :class:`NodeNG` the base class
-for AST nodes. This method return a generator which yields the
-successive inference for the node when going through the possible
-execution branches.
+The inference is a mechanism through which *astroid* tries to interpret
+statically your Python code.
 
 How does it work ?
 ------------------
 
-.. todo :: double check this :func:`infer` is monkey-patched point
+The magic is handled by :meth:`NodeNG.infer` method.
+*astroid* usually provides inference support for various Python primitives,
+such as protocols and statements, but it can also be enriched
+via `inference transforms`.
 
-The :meth:`NodeNG.infer` method either delegates the actual inference
-to the instance specific method :meth:`NodeNG._explicit_inference`
-when not `None` or to the overloaded :meth:`_infer` method. The
-important point to note is that the :meth:`_infer` is *not* defined in
-the nodes classes but is instead *monkey-patched* in the
-:file:`inference.py` so that the inference implementation is not
-scattered to the multiple node classes.
-
-.. note:: The inference method are to be wrapped in decorators like
-          :func:`path_wrapper` which update the inference context.
-
-In both cases the :meth:`infer` returns a *generator* which iterates
+In both cases the :meth:`infer` must return a *generator* which iterates
 through the various *values* the node could take.
 
-.. todo:: introduce the :func:`inference.infer_end` method and
-   	  terminal nodes along with the recursive call
-
 In some case the value yielded will not be a node found in the AST of the node
-but an instance of a special inference class such as :class:`_Yes`,
-:class:`Instance`,etc. Those classes are defined in :file:`bases.py`.
+but an instance of a special inference class such as :class:`Uninferable`,
+or :class:`Instance`.
 
-Namely, the special singleton :obj:`YES()` is yielded when the inference reaches
-a point where t can't follow the code and is so unable to guess a value ; and
+Namely, the special singleton :obj:`Uninferable()` is yielded when the inference reaches
+a point where it can't follow the code and is so unable to guess a value; and
 instances of the :class:`Instance` class are yielded when the current node is
-infered to be an instance of some known class.
+inferred to be an instance of some known class.
 
-What does it rely upon ?
-------------------------
 
-In order to perform such an inference the :meth:`infer` methods rely
-on several more global objects, mainly :
+Crash course into astroid's inference
+--------------------------------------
 
-:obj:`MANAGER`
-    is a unique global instance of the class :class:`AstroidManager`,
-    it helps managing and reusing inference needed / done somewhere
-    else than the current invocation node.
+Let's see some examples on how the inference might work in in ``astroid``.
 
-:class:`InferenceContext`
-    Instances of this class can be passed to the :meth:`infer` methods
-    to convey additional information on the context of the current
-    node, and especially the current scope.
+First we'll need to do a detour through some of the ``astroid``'s APIs.
 
-.. todo:: Write something about :class:`Scope` objects and
-          :meth:`NodeNG.lookup` method.
+``astroid`` offers a relatively similar API to the builtin ``ast`` module,
+that is, you can do ``astroid.parse(string)`` to get an AST out of the given
+string::
 
+    >>> tree = astroid.parse('a + b')
+    >>> tree
+    >>> <Module l.0 at 0x10d8a68d0>
+
+    >>> print(tree.repr_tree())
+    Module(
+       name='',
+       doc=None,
+       file='<?>',
+       path=['<?>'],
+       package=False,
+       pure_python=True,
+       future_imports=set(),
+       body=[Expr(value=BinOp(
+                op='+',
+                left=Name(name='a'),
+                right=Name(name='b')))])
+
+
+The :meth:`repr_tree` is super useful to inspect how a tree actually looks.
+Most of the time you can access the same fields as those represented
+in the output of :meth:`repr_tree` so you can do ``tree.body[0].value.left``
+to get the left hand side operand of the addition operation.
+
+Another useful function that you can use is :func`astroid.extract_node`,
+which given a string, tries to extract one or more nodes from the given string::
+
+   >>> node = astroid.extract_node('''
+   ... a = 1
+   ... b = 2
+   ... c
+   ''')
+
+In that example, the node that is going to be returned is the last node
+from the tree, so it will be the ``Name(c)`` node.
+You can also use :func:`astroid.extract_node` to extract multiple nodes::
+
+   >>> nodes = astroid.extract_node('''
+   ... a = 1 #@
+   ... b = 2 #@
+   ... c
+   ''')
+
+You can use ``#@`` comment to annotate the lines for which you want the
+corresponding nodes to be extracted. In that example, what we're going to
+extract is two ``Expr`` nodes, which is in astroid's parlance, two statements,
+but you can access their underlying ``Assign`` nodes using the ``.value`` attribute.
+
+Now let's see how can we use ``astroid`` to infer what's going on with your code.
+
+The main method that you can use is :meth:`infer`. It returns a generator
+with all the potential values that ``astroid`` can extract for a piece of code::
+
+    >>> name_node = astroid.extract_node('''
+    ... a = 1
+    ... b = 2
+    ... c = a + b
+    ... c
+    ''')
+    >>> inferred = next(name_node.infer())
+    >>> inferred
+    <Const.int l.None at 0x10d913128>
+    >>> inferred.value
+    3
+
+From this example you can see that ``astroid`` is capable of *inferring* what ``c``
+might hold, which is a constant value with the number 3.

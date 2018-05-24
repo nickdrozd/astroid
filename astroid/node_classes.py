@@ -15,7 +15,6 @@ import abc
 import builtins as builtins_mod
 import itertools
 import pprint
-import warnings
 from functools import singledispatch as _singledispatch
 
 from astroid import as_string
@@ -42,8 +41,7 @@ def unpack_infer(stmt, context=None):
             if elt is util.Uninferable:
                 yield elt
                 continue
-            for inferred_elt in unpack_infer(elt, context):
-                yield inferred_elt
+            yield from unpack_infer(elt, context)
         # Explicit StopIteration to return error information, see comment
         # in raise_if_nothing_inferred.
         return dict(node=stmt, context=context)
@@ -59,8 +57,8 @@ def unpack_infer(stmt, context=None):
         if inferred is util.Uninferable:
             yield inferred
         else:
-            for inf_inf in unpack_infer(inferred, context):
-                yield inf_inf
+            yield from unpack_infer(inferred, context)
+
     return dict(node=stmt, context=context)
 
 
@@ -180,23 +178,21 @@ def _container_getitem(instance, elts, index, context=None):
             new_cls.elts = elts[index_slice]
             new_cls.parent = instance.parent
             return new_cls
-        elif isinstance(index, Const):
+        if isinstance(index, Const):
             return elts[index.value]
-    except IndexError:
-        util.reraise(exceptions.AstroidIndexError(
+    except IndexError as exc:
+        raise exceptions.AstroidIndexError(
             message='Index {index!s} out of range',
-            node=instance, index=index, context=context))
+            node=instance, index=index, context=context) from exc
     except TypeError as exc:
-        util.reraise(exceptions.AstroidTypeError(
-            message='Type error {error!r}', error=exc,
-            node=instance, index=index, context=context))
+        raise exceptions.AstroidTypeError(
+            message='Type error {error!r}',
+            node=instance, index=index, context=context) from exc
 
-    raise exceptions.AstroidTypeError(
-        'Could not use %s as subscript index' % index
-    )
+    raise exceptions.AstroidTypeError('Could not use %s as subscript index' % index)
 
 
-class NodeNG(object):
+class NodeNG:
     """ A node of the new Abstract Syntax Tree (AST).
 
     This is the base class for all Astroid node classes.
@@ -638,7 +634,7 @@ class NodeNG(object):
 
     def _infer_name(self, frame, name):
         # overridden for ImportFrom, Import, Global, TryExcept and Arguments
-        return None
+        pass
 
     def _infer(self, context=None):
         """we don't know how to resolve a statement by default"""
@@ -655,20 +651,6 @@ class NodeNG(object):
         :rtype: list
         """
         return list(self.infer())
-
-    def infered(self):
-        """A deprecated alias of :meth:`inferred`.
-
-        .. deprecated:: 1.5
-
-        :returns: The inferred values.
-        :rtype: list
-        """
-        warnings.warn('%s.infered() is deprecated and slated for removal '
-                      'in astroid 2.0, use %s.inferred() instead.'
-                      % (type(self).__name__, type(self).__name__),
-                      PendingDeprecationWarning, stacklevel=2)
-        return self.inferred()
 
     def instantiate_class(self):
         """Instantiate a instance of the defined class.
@@ -741,6 +723,7 @@ class NodeNG(object):
         :returns: The string representation of the AST.
         :rtype: str
         """
+        # pylint: disable=too-many-statements
         @_singledispatch
         def _repr_tree(node, result, done, cur_indent='', depth=1):
             """Outputs a representation of a non-tuple/list, non-node that's
@@ -793,8 +776,8 @@ class NodeNG(object):
                 result.append(indent + '<Recursion on %s with id=%s' %
                               (type(node).__name__, id(node)))
                 return False
-            else:
-                done.add(node)
+            done.add(node)
+
             if max_depth and depth > max_depth:
                 result.append('...')
                 return False
@@ -969,7 +952,7 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
         """
 
 
-class LookupMixIn(object):
+class LookupMixIn:
     """Mixin to look up a name in the right scope."""
 
     def lookup(self, name):
@@ -1061,8 +1044,13 @@ class LookupMixIn(object):
         for node in stmts:
             stmt = node.statement()
             # line filtering is on and we have reached our location, break
-            if mylineno > 0 and stmt.fromlineno > mylineno:
+            if stmt.fromlineno > mylineno > 0:
                 break
+            # Ignore decorators with the same name as the
+            # decorated function
+            # Fixes issue #375
+            if mystmt is stmt and is_from_decorator(self):
+                continue
             assert hasattr(node, 'assign_type'), (node, node.scope(),
                                                   node.scope().locals)
             assign_type = node.assign_type()
@@ -1636,6 +1624,7 @@ class Assign(mixins.AssignTypeMixin, Statement):
     <Assign l.1 at 0x7effe1db8550>
     """
     _astroid_fields = ('targets', 'value',)
+    _other_other_fields = ('type_annotation',)
     targets = None
     """What is being assigned to.
 
@@ -1646,8 +1635,13 @@ class Assign(mixins.AssignTypeMixin, Statement):
 
     :type: NodeNG or None
     """
+    type_annotation = None
+    """If present, this will contain the type annotation passed by a type comment
 
-    def postinit(self, targets=None, value=None):
+    :type: NodeNG or None
+    """
+
+    def postinit(self, targets=None, value=None, type_annotation=None):
         """Do some setup after initialisation.
 
         :param targets: What is being assigned to.
@@ -1658,6 +1652,7 @@ class Assign(mixins.AssignTypeMixin, Statement):
         """
         self.targets = targets
         self.value = value
+        self.type_annotation = type_annotation
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):
@@ -2158,20 +2153,6 @@ class Comprehension(NodeNG):
         """
         return self
 
-    def ass_type(self):
-        """A deprecated alias of :meth:`assign_type`.
-
-        .. deprecated:: 1.5
-
-        :returns: The assignment type.
-        :rtype: NodeNG
-        """
-        warnings.warn('%s.ass_type() is deprecated and slated for removal'
-                      'in astroid 2.0, use %s.assign_type() instead.'
-                      % (type(self).__name__, type(self).__name__),
-                      PendingDeprecationWarning, stacklevel=2)
-        return self.assign_type()
-
     def _get_filtered_stmts(self, lookup_node, node, stmts, mystmt):
         """method used in filter_stmts"""
         if self is mystmt:
@@ -2225,6 +2206,17 @@ class Const(NodeNG, bases.Instance):
 
         super(Const, self).__init__(lineno, col_offset, parent)
 
+    def __getattr__(self, name):
+        # This is needed because of Proxy's __getattr__ method.
+        # Calling object.__new__ on this class without calling
+        # __init__ would result in an infinite loop otherwise
+        # since __getattr__ is called when an attribute doesn't
+        # exist and self._proxied indirectly calls self.value
+        # and Proxy __getattr__ calls self.value
+        if name == "value":
+            raise AttributeError
+        return super().__getattr__(name)
+
     def getitem(self, index, context=None):
         """Get an item from this node if subscriptable.
 
@@ -2248,13 +2240,13 @@ class Const(NodeNG, bases.Instance):
             if isinstance(self.value, (str, bytes)):
                 return Const(self.value[index_value])
         except IndexError as exc:
-            util.reraise(exceptions.AstroidIndexError(
-                message='Index {index!r} out of range', error=exc,
-                node=self, index=index, context=context))
+            raise exceptions.AstroidIndexError(
+                message='Index {index!r} out of range',
+                node=self, index=index, context=context) from exc
         except TypeError as exc:
-            util.reraise(exceptions.AstroidTypeError(
-                message='Type error {error!r}', error=exc,
-                node=self, index=index, context=context))
+            raise exceptions.AstroidTypeError(
+                message='Type error {error!r}',
+                node=self, index=index, context=context) from exc
 
         raise exceptions.AstroidTypeError(
             '%r (value=%s)' % (self, self.value)
@@ -2457,7 +2449,7 @@ class Dict(NodeNG, bases.Instance):
     def postinit(self, items):
         """Do some setup after initialisation.
 
-        :param items: The ley-value pairs contained in the dictionary.
+        :param items: The key-value pairs contained in the dictionary.
         :type items: list(tuple(NodeNG, NodeNG))
         """
         self.items = items
@@ -2517,7 +2509,7 @@ class Dict(NodeNG, bases.Instance):
         :returns: The keys of this node.
         :rtype: iterable(NodeNG)
         """
-        return self.items[::2]
+        return [key for (key, _) in self.items]
 
     def getitem(self, index, context=None):
         """Get an item from this node.
@@ -2667,9 +2659,8 @@ class ExceptHandler(mixins.AssignTypeMixin, Statement):
         """
         if self.name:
             return self.name.tolineno
-        elif self.type:
+        if self.type:
             return self.type.tolineno
-
         return self.lineno
 
     def catch(self, exceptions): # pylint: disable=redefined-outer-name
@@ -2765,6 +2756,7 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     <For l.1 at 0x7f23b2e8cf28>
     """
     _astroid_fields = ('target', 'iter', 'body', 'orelse',)
+    _other_other_fields = ('type_annotation',)
     target = None
     """What the loop assigns to.
 
@@ -2785,9 +2777,14 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
 
     :type: list(NodeNG) or None
     """
+    type_annotation = None
+    """If present, this will contain the type annotation passed by a type comment
+
+    :type: NodeNG or None
+    """
 
     # pylint: disable=redefined-builtin; had to use the same name as builtin ast module.
-    def postinit(self, target=None, iter=None, body=None, orelse=None):
+    def postinit(self, target=None, iter=None, body=None, orelse=None, type_annotation=None):
         """Do some setup after initialisation.
 
         :param target: What the loop assigns to.
@@ -2806,6 +2803,7 @@ class For(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
         self.iter = iter
         self.body = body
         self.orelse = orelse
+        self.type_annotation = type_annotation
 
     optional_assign = True
     """Whether this node optionally assigns a variable.
@@ -3551,8 +3549,7 @@ class Slice(NodeNG):
         elif attrname == 'step':
             yield self._wrap_attribute(self.step)
         else:
-            for value in self.getattr(attrname, context=context):
-                yield value
+            yield from self.getattr(attrname, context=context)
 
     def getattr(self, attrname, context=None):
         return self._proxied.getattr(attrname, context)
@@ -3981,7 +3978,8 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
     >>> node
     <With l.2 at 0x7f23b2e4e710>
     """
-    _astroid_fields = ('items', 'body')
+    _astroid_fields = ('items', 'body',)
+    _other_other_fields = ('type_annotation',)
     items = None
     """The pairs of context managers and the names they are assigned to.
 
@@ -3992,8 +3990,13 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
 
     :type: list(NodeNG) or None
     """
+    type_annotation = None
+    """If present, this will contain the type annotation passed by a type comment
 
-    def postinit(self, items=None, body=None):
+    :type: NodeNG or None
+    """
+
+    def postinit(self, items=None, body=None, type_annotation=None):
         """Do some setup after initialisation.
 
         :param items: The pairs of context managers and the names
@@ -4005,6 +4008,7 @@ class With(mixins.BlockRangeMixIn, mixins.AssignTypeMixin, Statement):
         """
         self.items = items
         self.body = body
+        self.type_annotation = type_annotation
 
     @decorators.cachedproperty
     def blockstart_tolineno(self):
@@ -4220,3 +4224,13 @@ def const_factory(value):
         node = EmptyNode()
         node.object = value
         return node
+
+
+def is_from_decorator(node):
+    """Return True if the given node is the child of a decorator"""
+    parent = node.parent
+    while parent is not None:
+        if isinstance(parent, Decorators):
+            return True
+        parent = parent.parent
+    return False

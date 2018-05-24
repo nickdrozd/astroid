@@ -5,8 +5,6 @@
 # For details: https://github.com/PyCQA/astroid/blob/master/COPYING.LESSER
 
 
-import six
-
 from astroid import bases
 from astroid import context as contextmod
 from astroid import exceptions
@@ -14,8 +12,7 @@ from astroid import nodes
 from astroid import util
 
 
-
-class CallSite(object):
+class CallSite:
     """Class for understanding arguments passed into a call site
 
     It needs a call context, which contains the arguments and the
@@ -94,7 +91,7 @@ class CallSite(object):
                     if not isinstance(dict_key, nodes.Const):
                         values[name] = util.Uninferable
                         continue
-                    if not isinstance(dict_key.value, six.string_types):
+                    if not isinstance(dict_key.value, str):
                         values[name] = util.Uninferable
                         continue
                     if dict_key.value in values:
@@ -136,7 +133,7 @@ class CallSite(object):
         Arguments:
             funcnode: The function being called.
             name: The name of the argument whose value is being inferred.
-            context: TODO
+            context: Inference context object
         """
         if name in self.duplicated_keywords:
             raise exceptions.InferenceError('The arguments passed to {func!r} '
@@ -230,7 +227,7 @@ class CallSite(object):
             kwarg.postinit([(nodes.const_factory(key), value)
                             for key, value in kwargs.items()])
             return iter((kwarg, ))
-        elif funcnode.args.vararg == name:
+        if funcnode.args.vararg == name:
             # It wants all the args that were passed into
             # the call site.
             if self.has_invalid_arguments():

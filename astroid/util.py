@@ -4,12 +4,10 @@
 # Licensed under the LGPL: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html
 # For details: https://github.com/PyCQA/astroid/blob/master/COPYING.LESSER
 
-import sys
 import warnings
 
 import importlib
 import lazy_object_proxy
-import six
 
 
 def lazy_descriptor(obj):
@@ -24,14 +22,8 @@ def lazy_import(module_name):
         lambda: importlib.import_module('.' + module_name, 'astroid'))
 
 
-def reraise(exception):
-    '''Reraises an exception with the traceback from the current exception
-    block.'''
-    six.reraise(type(exception), exception, sys.exc_info()[2])
-
-
 @object.__new__
-class Uninferable(object):
+class Uninferable:
     """Special inference object, which is returned when inference fails."""
     def __repr__(self):
         return 'Uninferable'
@@ -58,7 +50,7 @@ class Uninferable(object):
         func = getattr(visitor, "visit_uninferable")
         return func(self)
 
-class BadOperationMessage(object):
+class BadOperationMessage:
     """Object which describes a TypeError occurred somewhere in the inference chain
 
     This is not an exception, but a container object which holds the types and

@@ -243,11 +243,18 @@ class NumpyBrainCoreNumericTypesTest(SubTestWrapper):
     """
     Test of all the missing types defined in numerictypes module.
     """
-    all_types = ['uint16', 'uint32', 'uint64', 'int128', 'uint128',
-                 'float16', 'float32', 'float64', 'float80', 'float96',
-                 'float128', 'float256', 'complex32', 'complex64', 'complex128',
-                 'complex160', 'complex192', 'complex256', 'complex512',
-                 'timedelta64', 'datetime64', 'unicode_', 'string_', 'object_']
+    all_types = ['uint16', 'uint32', 'uint64',
+                 'float16', 'float32', 'float64', 'float96',
+                 'complex64', 'complex128',
+                 'complex192', 'timedelta64', 'datetime64', 'unicode_',
+                 'str_', 'bool_', 'bool8', 'byte', 'int8', 'bytes0', 'bytes_',
+                 'cdouble', 'cfloat', 'character', 'clongdouble',
+                 'clongfloat', 'complexfloating', 'csingle', 'double',
+                 'flexible', 'floating', 'half', 'inexact', 'int0',
+                 'longcomplex', 'longdouble', 'longfloat',
+                 'short', 'signedinteger', 'single', 'singlecomplex',
+                 'str0', 'ubyte', 'uint', 'uint0', 'uintc', 'uintp',
+                 'ulonglong', 'unsignedinteger', 'ushort', 'void0']
 
     def _inferred_numpy_attribute(self, attrib):
         node = builder.extract_node("""
@@ -263,6 +270,63 @@ class NumpyBrainCoreNumericTypesTest(SubTestWrapper):
             with self.subTest(typ=typ):
                 inferred = self._inferred_numpy_attribute(typ)
                 self.assertIsInstance(inferred, nodes.ClassDef)
+
+    def test_generic_types_have_methods(self):
+        """
+        Test that all generic derived types have specified methods
+        """
+        generic_methods = ['all', 'any', 'argmax', 'argmin', 'argsort',
+                           'astype', 'base', 'byteswap', 'choose',
+                           'clip', 'compress', 'conj', 'conjugate',
+                           'copy', 'cumprod', 'cumsum', 'data',
+                           'diagonal', 'dtype', 'dump', 'dumps', 'fill',
+                           'flags', 'flat', 'flatten', 'getfield',
+                           'imag', 'item', 'itemset', 'itemsize', 'max',
+                           'mean', 'min', 'nbytes', 'ndim',
+                           'newbyteorder', 'nonzero', 'prod', 'ptp',
+                           'put', 'ravel', 'real', 'repeat', 'reshape',
+                           'resize', 'round', 'searchsorted',
+                           'setfield', 'setflags', 'shape', 'size',
+                           'sort', 'squeeze', 'std', 'strides', 'sum',
+                           'swapaxes', 'take', 'tobytes', 'tofile',
+                           'tolist', 'tostring', 'trace', 'transpose',
+                           'var', 'view']
+
+        for type_ in ('bool_', 'bytes_', 'character', 'complex128',
+                      'complex192', 'complex64', 'complexfloating',
+                      'datetime64', 'flexible', 'float16', 'float32',
+                      'float64', 'float96', 'floating', 'generic', 'inexact',
+                      'int16', 'int32', 'int32', 'int64', 'int8', 'integer',
+                      'number', 'signedinteger', 'str_',
+                      'timedelta64', 'uint16', 'uint32', 'uint32', 'uint64',
+                      'uint8', 'unsignedinteger', 'void'):
+            with self.subTest(typ=type_):
+                inferred = self._inferred_numpy_attribute(type_)
+                for meth in generic_methods:
+                    with self.subTest(meth=meth):
+                        self.assertTrue(meth in {m.name for m in inferred.methods()})
+
+    def test_generic_types_have_attributes(self):
+        """
+        Test that all generic derived types have specified attributes
+        """
+        generic_attr = ['base', 'data', 'dtype', 'flags', 'flat', 'imag',
+                        'itemsize', 'nbytes', 'ndim', 'real', 'size',
+                        'strides']
+
+        for type_ in ('bool_', 'bytes_', 'character', 'complex128',
+                      'complex192', 'complex64', 'complexfloating',
+                      'datetime64', 'flexible', 'float16', 'float32',
+                      'float64', 'float96', 'floating', 'generic', 'inexact',
+                      'int16', 'int32', 'int32', 'int64', 'int8', 'integer',
+                      'number', 'signedinteger', 'str_',
+                      'timedelta64', 'uint16', 'uint32', 'uint32', 'uint64',
+                      'uint8', 'unsignedinteger', 'void'):
+            with self.subTest(typ=type_):
+                inferred = self._inferred_numpy_attribute(type_)
+                for attr in generic_attr:
+                    with self.subTest(attr=attr):
+                        self.assertNotEqual(len(inferred.getattr(attr)), 0)
 
 
 if __name__ == '__main__':

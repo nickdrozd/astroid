@@ -24,6 +24,7 @@ TYPING_NAMEDTUPLE_BASENAMES = {
     'NamedTuple',
     'typing.NamedTuple'
 }
+ENUM_BASE_NAMES = {'Enum', 'IntEnum', 'enum.Enum', 'enum.IntEnum'}
 
 
 def _infer_first(node, context):
@@ -86,7 +87,6 @@ def infer_func_form(node, base_type, context=None, enum=False):
             else:
                 # Enums supports either iterator of (name, value) pairs
                 # or mappings.
-                # TODO: support only list, tuples and mappings.
                 if hasattr(names, 'items') and isinstance(names.items, list):
                     attributes = [_infer_first(const[0], context).value
                                   for const in names.items
@@ -252,11 +252,10 @@ def infer_enum(node, context=None):
 
 def infer_enum_class(node):
     """ Specific inference for enums. """
-    names = {'Enum', 'IntEnum', 'enum.Enum', 'enum.IntEnum'}
     for basename in node.basenames:
         # TODO: doesn't handle subclasses yet. This implementation
         # is a hack to support enums.
-        if basename not in names:
+        if basename not in ENUM_BASE_NAMES:
             continue
         if node.root().name == 'enum':
             # Skip if the class is directly from enum module.
@@ -276,19 +275,29 @@ def infer_enum_class(node):
             elif isinstance(stmt, nodes.AnnAssign):
                 targets = [stmt.target]
 
+            inferred_return_value = None
+            if isinstance(stmt.value, nodes.Const):
+                if isinstance(stmt.value.value, str):
+                    inferred_return_value = '"{}"'.format(stmt.value.value)
+                else:
+                    inferred_return_value = stmt.value.value
+
             new_targets = []
             for target in targets:
                 # Replace all the assignments with our mocked class.
                 classdef = dedent('''
-                class %(name)s(%(types)s):
+                class {name}({types}):
                     @property
                     def value(self):
-                        # Not the best return.
-                        return None
+                        return {return_value}
                     @property
                     def name(self):
-                        return %(name)r
-                ''' % {'name': target.name, 'types': ', '.join(node.basenames)})
+                        return {name}
+                '''.format(
+                    name=target.name,
+                    types=', '.join(node.basenames),
+                    return_value=inferred_return_value,
+                ))
                 fake = AstroidBuilder(MANAGER).string_build(classdef)[target.name]
                 fake.parent = target.parent
                 for method in node.mymethods():
@@ -362,6 +371,8 @@ MANAGER.register_transform(
 )
 MANAGER.register_transform(
     nodes.ClassDef, infer_enum_class,
+    predicate=lambda cls: any(basename for basename in cls.basenames
+                              if basename in ENUM_BASE_NAMES)
 )
 MANAGER.register_transform(
     nodes.ClassDef,

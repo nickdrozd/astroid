@@ -11,7 +11,7 @@ import copy
 import pprint
 
 
-class InferenceContext(object):
+class InferenceContext:
     """Provide context for inference
 
     Store already inferred nodes to save time
@@ -99,7 +99,6 @@ class InferenceContext(object):
             yield result
 
         self.inferred[key] = tuple(results)
-        return
 
     @contextlib.contextmanager
     def restore_path(self):
@@ -114,7 +113,7 @@ class InferenceContext(object):
         return '%s(%s)' % (type(self).__name__, ',\n    '.join(state))
 
 
-class CallContext(object):
+class CallContext:
     """Holds information for a call site."""
 
     __slots__ = ('args', 'keywords')
@@ -137,3 +136,28 @@ def copy_context(context):
         return context.clone()
 
     return InferenceContext()
+
+
+def bind_context_to_node(context, node):
+    """Give a context a boundnode
+    to retrieve the correct function name or attribute value
+    with from further inference.
+
+    Do not use an existing context since the boundnode could then
+    be incorrectly propagated higher up in the call stack.
+
+    :param context: Context to use
+    :type context: Optional(context)
+
+    :param node: Node to do name lookups from
+    :type node NodeNG:
+
+    :returns: A new context
+    :rtype: InferenceContext
+    """
+    if context is not None:
+        context = context.clone()
+    else:
+        context = InferenceContext()
+    context.boundnode = node
+    return context

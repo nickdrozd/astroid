@@ -10,10 +10,13 @@
 """tests for specific behaviour of astroid nodes
 """
 import os
+import platform
 import sys
 import textwrap
 import unittest
+import copy
 
+import pytest
 import six
 
 import astroid
@@ -32,6 +35,10 @@ from astroid.tests import resources
 
 abuilder = builder.AstroidBuilder()
 BUILTINS = six.moves.builtins.__name__
+HAS_TYPED_AST = (
+    platform.python_implementation() != 'CPython'
+    and sys.version_info.minor < 7
+)
 
 
 class AsStringTest(resources.SysPathSetup, unittest.TestCase):
@@ -412,6 +419,7 @@ class ConstNodeTest(unittest.TestCase):
 
     def _test(self, value):
         node = nodes.const_factory(value)
+        # pylint: disable=no-member; Infers two potential values
         self.assertIsInstance(node._proxied, nodes.ClassDef)
         self.assertEqual(node._proxied.name, value.__class__.__name__)
         self.assertIs(node.value, value)
@@ -438,6 +446,13 @@ class ConstNodeTest(unittest.TestCase):
 
     def test_unicode(self):
         self._test('a')
+
+    def test_copy(self):
+        """
+        Make sure copying a Const object doesn't result in infinite recursion
+        """
+        const = copy.copy(nodes.Const(1))
+        assert const.value == 1
 
 
 class NameNodeTest(unittest.TestCase):
@@ -810,6 +825,111 @@ def test_unknown():
                       type(util.Uninferable))
     assert isinstance(nodes.Unknown().name, str)
     assert isinstance(nodes.Unknown().qname(), str)
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_comments_with():
+    module = builder.parse('''
+    with a as b: # type: int
+        pass
+    with a as b: # type: ignore
+        pass
+    ''')
+    node = module.body[0]
+    ignored_node = module.body[1]
+    assert isinstance(node.type_annotation, astroid.Name)
+
+    assert ignored_node.type_annotation is None
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_comments_for():
+    module = builder.parse('''
+    for a, b in [1, 2, 3]: # type: List[int]
+        pass
+    for a, b in [1, 2, 3]: # type: ignore
+        pass
+    ''')
+    node = module.body[0]
+    ignored_node = module.body[1]
+    assert isinstance(node.type_annotation, astroid.Subscript)
+    assert node.type_annotation.as_string() == 'List[int]'
+
+    assert ignored_node.type_annotation is None
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_coments_assign():
+    module = builder.parse('''
+    a, b = [1, 2, 3] # type: List[int]
+    a, b = [1, 2, 3] # type: ignore
+    ''')
+    node = module.body[0]
+    ignored_node = module.body[1]
+    assert isinstance(node.type_annotation, astroid.Subscript)
+    assert node.type_annotation.as_string() == 'List[int]'
+
+    assert ignored_node.type_annotation is None
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_comments_invalid_expression():
+    module = builder.parse('''
+    a, b = [1, 2, 3] # type: something completely invalid
+    a, b = [1, 2, 3] # typeee: 2*+4
+    a, b = [1, 2, 3] # type: List[int
+    ''')
+    for node in module.body:
+        assert node.type_annotation is None
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_comments_invalid_function_comments():
+    module = builder.parse('''
+    def func():
+        # type: something completely invalid
+        pass
+    def func1():
+        # typeee: 2*+4
+        pass
+    def func2():
+        # type: List[int
+        pass
+    ''')
+    for node in module.body:
+        assert node.type_comment_returns is None
+        assert node.type_comment_args is None
+
+
+@pytest.mark.skipif(not HAS_TYPED_AST, reason="requires typed_ast")
+def test_type_comments_function():
+    module = builder.parse('''
+    def func():
+        # type: (int) -> str
+        pass
+    def func1():
+        # type: (int, int, int) -> (str, str)
+        pass
+    def func2():
+        # type: (int, int, str, List[int]) -> List[int]
+        pass
+    ''')
+    expected_annotations = [
+        (["int"], astroid.Name, "str"),
+        (["int", "int", "int"], astroid.Tuple, "(str, str)"),
+        (["int", "int", "str", "List[int]"], astroid.Subscript, "List[int]"),
+    ]
+    for node, (
+            expected_args,
+            expected_returns_type,
+            expected_returns_string
+        ) in zip(module.body, expected_annotations):
+        assert node.type_comment_returns is not None
+        assert node.type_comment_args is not None
+        for expected_arg, actual_arg in zip(expected_args, node.type_comment_args):
+            assert actual_arg.as_string() == expected_arg
+        assert isinstance(node.type_comment_returns, expected_returns_type)
+        assert node.type_comment_returns.as_string() == expected_returns_string
 
 
 if __name__ == '__main__':

@@ -163,7 +163,6 @@ def infer_name(self, context=None):
     if not stmts:
         # Try to see if the name is enclosed in a nested function
         # and use the higher (first function) scope for searching.
-        # TODO: should this be promoted to other nodes as well?
         parent_function = _higher_function_scope(self.scope())
         if parent_function:
             _, stmts = parent_function.lookup(self.name)
@@ -187,6 +186,7 @@ def infer_call(self, context=None):
     callcontext.callcontext = contextmod.CallContext(args=self.args,
                                                      keywords=self.keywords)
     callcontext.boundnode = None
+    context_lookup = None
     if context is not None:
         context_lookup = _populate_context_lookup(self, context.clone())
     for callee in self.func.infer(context):
@@ -195,8 +195,11 @@ def infer_call(self, context=None):
             continue
         try:
             if hasattr(callee, 'infer_call_result'):
-                for inferred in callee.infer_call_result(self, callcontext, context_lookup):
-                    yield inferred
+                yield from callee.infer_call_result(
+                    caller=self,
+                    context=callcontext,
+                    context_lookup=context_lookup,
+                )
         except exceptions.InferenceError:
             ## XXX log error ?
             continue
@@ -219,8 +222,11 @@ def infer_import(self, context=None, asname=True):
         else:
             yield self.do_import_module(name)
     except exceptions.AstroidBuildingError as exc:
-        util.reraise(exceptions.InferenceError(node=self, error=exc,
-                                               context=context))
+        raise exceptions.InferenceError(
+            node=self,
+            context=context,
+        ) from exc
+
 
 nodes.Import._infer = infer_import
 
@@ -244,8 +250,10 @@ def infer_import_from(self, context=None, asname=True):
     try:
         module = self.do_import_module()
     except exceptions.AstroidBuildingError as exc:
-        util.reraise(exceptions.InferenceError(node=self, error=exc,
-                                               context=context))
+        raise exceptions.InferenceError(
+            node=self,
+            context=context,
+        ) from exc
 
     try:
         context = contextmod.copy_context(context)
@@ -253,8 +261,12 @@ def infer_import_from(self, context=None, asname=True):
         stmts = module.getattr(name, ignore_locals=module is self.root())
         return bases._infer_stmts(stmts, context)
     except exceptions.AttributeInferenceError as error:
-        util.reraise(exceptions.InferenceError(
-            error.message, target=self, attribute=name, context=context))
+        raise exceptions.InferenceError(
+            error.message,
+            target=self,
+            attribute=name,
+            context=context,
+        ) from error
 nodes.ImportFrom._infer = infer_import_from
 
 
@@ -282,8 +294,7 @@ def infer_attribute(self, context=None):
 
         try:
             context.boundnode = owner
-            for obj in owner.igetattr(self.attrname, context):
-                yield obj
+            yield from owner.igetattr(self.attrname, context)
             context.boundnode = None
         except (exceptions.AttributeInferenceError, exceptions.InferenceError):
             context.boundnode = None
@@ -305,9 +316,12 @@ def infer_global(self, context=None):
         return bases._infer_stmts(self.root().getattr(context.lookupname),
                                   context)
     except exceptions.AttributeInferenceError as error:
-        util.reraise(exceptions.InferenceError(
-            error.message, target=self, attribute=context.lookupname,
-            context=context))
+        raise exceptions.InferenceError(
+            error.message,
+            target=self,
+            attribute=context.lookupname,
+            context=context,
+        ) from error
 nodes.Global._infer = infer_global
 
 
@@ -360,16 +374,14 @@ def infer_subscript(self, context=None):
             exceptions.AstroidIndexError,
             exceptions.AttributeInferenceError,
             AttributeError) as exc:
-        util.reraise(exceptions.InferenceError(node=self, error=exc,
-                                               context=context))
+        raise exceptions.InferenceError(node=self, context=context) from exc
 
     # Prevent inferring if the inferred subscript
     # is the same as the original subscripted object.
     if self is assigned or assigned is util.Uninferable:
         yield util.Uninferable
         return None
-    for inferred in assigned.infer(context):
-        yield inferred
+    yield from assigned.infer(context)
 
     # Explicit StopIteration to return error information, see comment
     # in raise_if_nothing_inferred.
@@ -507,9 +519,8 @@ def _infer_unaryop(self, context=None):
 @decorators.path_wrapper
 def infer_unaryop(self, context=None):
     """Infer what an UnaryOp should return when evaluated."""
-    for inferred in _filter_operation_errors(self, _infer_unaryop, context,
-                                             util.BadUnaryOperationMessage):
-        yield inferred
+    yield from _filter_operation_errors(self, _infer_unaryop, context,
+                                        util.BadUnaryOperationMessage)
     # Explicit StopIteration to return error information, see comment
     # in raise_if_nothing_inferred.
     return dict(node=self, context=context)
@@ -526,10 +537,11 @@ def _is_not_implemented(const):
 def _invoke_binop_inference(instance, opnode, op, other, context, method_name):
     """Invoke binary operation inference on the given instance."""
     methods = dunder_lookup.lookup(instance, method_name)
-    if context is not None:
-        context.boundnode = instance
+    context = contextmod.bind_context_to_node(context, instance)
     method = methods[0]
     inferred = next(method.infer(context=context))
+    if inferred is util.Uninferable:
+        raise exceptions.InferenceError
     return instance.infer_binary_op(opnode, op, other, context, inferred)
 
 
@@ -673,23 +685,19 @@ def _infer_binary_operation(left, right, binary_opnode, context, flow_factory):
                 yield util.Uninferable
                 return
 
-            # TODO(cpopa): since the inference engine might return
-            # more values than are actually possible, we decide
-            # to return util.Uninferable if we have union types.
             if all(map(_is_not_implemented, results)):
                 continue
             not_implemented = sum(1 for result in results
                                   if _is_not_implemented(result))
             if not_implemented and not_implemented != len(results):
-                # Can't decide yet what this is, not yet though.
+                # Can't infer yet what this is.
                 yield util.Uninferable
                 return
 
             for result in results:
                 yield result
             return
-    # TODO(cpopa): yield a BadBinaryOperationMessage here,
-    # since the operation is not supported
+    # The operation doesn't seem to be supported so let the caller know about it
     yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
 
 
@@ -719,9 +727,8 @@ def _infer_binop(self, context):
                 return
 
             try:
-                for result in _infer_binary_operation(lhs, rhs, self,
-                                                      context, _get_binop_flow):
-                    yield result
+                yield from _infer_binary_operation(
+                    lhs, rhs, self, context, _get_binop_flow)
             except exceptions._NonDeducibleTypeHierarchy:
                 yield util.Uninferable
 
@@ -755,8 +762,7 @@ def _infer_augassign(self, context=None):
                 return
 
             try:
-                for result in _infer_binary_operation(lhs, rhs, self, context, _get_aug_flow):
-                    yield result
+                yield from _infer_binary_operation(lhs, rhs, self, context, _get_aug_flow)
             except exceptions._NonDeducibleTypeHierarchy:
                 yield util.Uninferable
 
@@ -803,9 +809,7 @@ def infer_empty_node(self, context=None):
         yield util.Uninferable
     else:
         try:
-            for inferred in MANAGER.infer_ast_from_something(self.object,
-                                                             context=context):
-                yield inferred
+            yield from MANAGER.infer_ast_from_something(self.object, context=context)
         except exceptions.AstroidError:
             yield util.Uninferable
 nodes.EmptyNode._infer = infer_empty_node
@@ -819,14 +823,12 @@ nodes.Index._infer = infer_index
 # will be solved.
 def instance_getitem(self, index, context=None):
     # Rewrap index to Const for this case
-    if context:
-        new_context = context.clone()
-    else:
-        context = new_context = contextmod.InferenceContext()
+    new_context = contextmod.bind_context_to_node(context, self)
+    if not context:
+        context = new_context
 
     # Create a new callcontext for providing index as an argument.
     new_context.callcontext = contextmod.CallContext(args=[index])
-    new_context.boundnode = self
 
     method = next(self.igetattr('__getitem__', context=context), None)
     if not isinstance(method, bases.BoundMethod):
@@ -836,10 +838,12 @@ def instance_getitem(self, index, context=None):
 
     try:
         return next(method.infer_call_result(self, new_context))
-    except StopIteration:
-        util.reraise(exceptions.InferenceError(
+    except StopIteration as exc:
+        raise exceptions.InferenceError(
             message='Inference for {node!r}[{index!s}] failed.',
-            node=self, index=index, context=context))
+            node=self,
+            index=index,
+            context=context) from exc
 
 bases.Instance.getitem = instance_getitem
 

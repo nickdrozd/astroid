@@ -9,8 +9,6 @@ import sys
 import unittest
 import textwrap
 
-import six
-
 from astroid import MANAGER, Instance, nodes
 from astroid.bases import BUILTINS
 from astroid.builder import AstroidBuilder, extract_node
@@ -225,12 +223,9 @@ def test():
             pass
         """)
         ancestors = list(node.ancestors())
-        if six.PY3:
-            self.assertEqual(len(ancestors), 1)
-            self.assertEqual(ancestors[0].qname(),
-                             "{}.object".format(BUILTINS))
-        else:
-            self.assertEqual(len(ancestors), 0)
+        self.assertEqual(len(ancestors), 1)
+        self.assertEqual(ancestors[0].qname(),
+                         "{}.object".format(BUILTINS))
 
     def test_ancestors_missing_from_function(self):
         # Test for https://www.logilab.org/ticket/122793
@@ -326,8 +321,9 @@ def test():
         self.assertEqual(len(node.inferred()), 1)
 
 
-class Whatever(object):
+class Whatever:
     a = property(lambda x: x, lambda x: x)
+
 
 if __name__ == '__main__':
     unittest.main()
