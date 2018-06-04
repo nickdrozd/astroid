@@ -15,6 +15,7 @@ import abc
 import builtins as builtins_mod
 import itertools
 import pprint
+from functools import lru_cache
 from functools import singledispatch as _singledispatch
 
 from astroid import as_string
@@ -977,6 +978,7 @@ class _BaseContainer(mixins.ParentAssignTypeMixin,
 class LookupMixIn:
     """Mixin to look up a name in the right scope."""
 
+    @lru_cache(maxsize=None)
     def lookup(self, name):
         """Lookup where the given variable is assigned.
 
