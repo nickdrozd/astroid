@@ -637,6 +637,23 @@ class NodeNG(object):
                 yield from self._get_name_nodes()
                 return
 
+            if klass is Global:
+                # print(3)
+                yield from self._get_global_nodes()
+                return
+
+            if klass is Nonlocal:
+                # print(4)
+                yield from self._get_nonlocal_nodes()
+                return
+
+            if klass is Return:
+                # print(5)
+                yield from self._get_return_nodes()
+                return
+
+        # print(klass, skip_klass)
+
         if isinstance(self, klass):
             yield self
 
@@ -654,6 +671,12 @@ class NodeNG(object):
     def _get_assign_nodes(self):
         yield from ()
 
+    def _get_global_nodes(self):
+        yield from ()
+
+    def _get_nonlocal_nodes(self):
+        yield from ()
+
     def _get_name_nodes(self):
         for child_node in self.get_children():
             yield from child_node._get_name_nodes()
@@ -661,6 +684,9 @@ class NodeNG(object):
     def _get_assignname_nodes(self):
         for child_node in self.get_children():
             yield from child_node._get_assignname_nodes()
+
+    def _get_return_nodes(self):
+        yield from ()
 
     def _get_return_nodes_skip_functions(self):
         yield from ()
@@ -3180,6 +3206,9 @@ class Global(mixins.NoChildrenMixin, Statement):
     def _infer_name(self, frame, name):
         return name
 
+    def _get_global_nodes(self):
+        yield self
+
 
 class If(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.If` node.
@@ -3508,6 +3537,9 @@ class Nonlocal(mixins.NoChildrenMixin, Statement):
     def _infer_name(self, frame, name):
         return name
 
+    def _get_nonlocal_nodes(self):
+        yield self
+
 
 class Pass(mixins.NoChildrenMixin, Statement):
     """Class representing an :class:`ast.Pass` node.
@@ -3651,6 +3683,9 @@ class Return(Statement):
     def get_children(self):
         if self.value is not None:
             yield self.value
+
+    def _get_return_nodes(self):
+        yield self
 
     def _get_return_nodes_skip_functions(self):
         yield self
