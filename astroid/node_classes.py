@@ -2107,6 +2107,12 @@ class Call(NodeNG):
 
         yield from self.keywords or ()
 
+    def nodes_of_class(self, klass, skip_klass=None):
+        if klass in (Global, Nonlocal):
+            yield from ()
+        else:
+            yield from super().nodes_of_class(klass, skip_klass)
+
 
 class Compare(NodeNG):
     """Class representing an :class:`ast.Compare` node.

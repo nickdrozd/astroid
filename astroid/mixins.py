@@ -149,3 +149,9 @@ class NoChildrenMixin:
     """Mixin for nodes with no children, e.g. Pass."""
     def get_children(self):
         yield from ()
+
+    def nodes_of_class(self, klass, skip_klass=None):
+        if isinstance(self, klass):
+            yield self
+        else:
+            yield from ()
