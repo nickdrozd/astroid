@@ -626,6 +626,17 @@ class NodeNG(object):
         :returns: The node of the given type.
         :rtype: iterable(NodeNG)
         """
+        if skip_klass is None:
+            if klass is AssignName:
+                # print(1)
+                yield from self._get_assignname_nodes()
+                return
+
+            if klass is Name:
+                # print(2)
+                yield from self._get_name_nodes()
+                return
+
         if isinstance(self, klass):
             yield self
 
@@ -646,6 +657,10 @@ class NodeNG(object):
     def _get_name_nodes(self):
         for child_node in self.get_children():
             yield from child_node._get_name_nodes()
+
+    def _get_assignname_nodes(self):
+        for child_node in self.get_children():
+            yield from child_node._get_assignname_nodes()
 
     def _get_return_nodes_skip_functions(self):
         yield from ()
@@ -1194,6 +1209,9 @@ class AssignName(mixins.NoChildrenMixin, LookupMixIn,
         """
 
         super(AssignName, self).__init__(lineno, col_offset, parent)
+
+    def _get_assignname_nodes(self):
+        yield self
 
 
 class DelName(mixins.NoChildrenMixin, LookupMixIn,
