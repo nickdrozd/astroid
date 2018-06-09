@@ -1774,6 +1774,8 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
     # a dictionary of class instances attributes
     _astroid_fields = ('decorators', 'bases', 'body') # name
 
+    is_class = True
+
     decorators = None
     """The decorators that are applied to this class.
 

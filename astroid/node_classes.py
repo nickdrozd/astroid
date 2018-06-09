@@ -219,6 +219,7 @@ class NodeNG(object):
     :type: bool
     """
     is_lambda = False
+    is_class = False
     # Attributes below are set by the builder module or by raw factories
     lineno = None
     """The line that this node appears on in the source code.
@@ -652,6 +653,30 @@ class NodeNG(object):
                 yield from self._get_return_nodes()
                 return
 
+            if klass is Call:
+                # print(6)
+                yield from self._get_call_nodes()
+                return
+
+            if klass is Starred:
+                # print(7)
+                yield from self._get_starred_nodes()
+                return
+
+        from astroid.scoped_nodes import ClassDef, FunctionDef
+
+        # if skip_klass is FunctionDef:
+        #     if klass is Return:
+        #         pass
+        #         # print(8)
+        #         yield from self._get_return_nodes_skip_functions()
+        #         return
+
+        if skip_klass == (FunctionDef, ClassDef):
+            if klass is Return:
+                yield from self._get_return_nodes_skip_functions_and_classes()
+                return
+
         # print(klass, skip_klass)
 
         if isinstance(self, klass):
@@ -668,8 +693,16 @@ class NodeNG(object):
                 continue
             yield from child_node.nodes_of_class(klass, skip_klass)
 
+    def _get_starred_nodes(self):
+        for child in self.get_children():
+            yield from child._get_starred_nodes()
+
     def _get_assign_nodes(self):
         yield from ()
+
+    def _get_call_nodes(self):
+        for child in self.get_children():
+            yield from child._get_call_nodes()
 
     def _get_global_nodes(self):
         yield from ()
@@ -689,6 +722,9 @@ class NodeNG(object):
         yield from ()
 
     def _get_return_nodes_skip_functions(self):
+        yield from ()
+
+    def _get_return_nodes_skip_functions_and_classes(self):
         yield from ()
 
     def _get_yield_nodes_skip_lambdas(self):
@@ -2156,6 +2192,11 @@ class Call(NodeNG):
             yield from ()
         else:
             yield from super().nodes_of_class(klass, skip_klass)
+
+    def _get_call_nodes(self):
+        yield self
+
+        yield from super()._get_call_nodes()
 
 
 class Compare(NodeNG):
@@ -3690,6 +3731,9 @@ class Return(Statement):
     def _get_return_nodes_skip_functions(self):
         yield self
 
+    def _get_return_nodes_skip_functions_and_classes(self):
+        yield self
+
 
 class Set(_BaseContainer):
     """Class representing an :class:`ast.Set` node.
@@ -3852,6 +3896,9 @@ class Starred(mixins.ParentAssignTypeMixin, NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def _get_starred_nodes(self):
+        yield self
 
 
 class Subscript(NodeNG):
