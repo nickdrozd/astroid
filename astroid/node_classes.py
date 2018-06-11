@@ -627,71 +627,56 @@ class NodeNG(object):
         :returns: The node of the given type.
         :rtype: iterable(NodeNG)
         """
-        if skip_klass is None:
-            if klass is AssignName:
-                # print(1)
-                yield from self._get_assignname_nodes()
-                return
+        if skip_klass is not None:
+            yield from self._nodes_of_class_generic(klass, skip_klass)
+            return
 
-            if klass is Name:
-                # print(2)
-                yield from self._get_name_nodes()
-                return
+        if klass is AssignName:
+            # print(1)
+            yield from self._get_assignname_nodes()
 
-            if klass is Global:
-                # print(3)
-                yield from self._get_global_nodes()
-                return
+        elif klass is Name:
+            # print(2)
+            yield from self._get_name_nodes()
 
-            if klass is Nonlocal:
-                # print(4)
-                yield from self._get_nonlocal_nodes()
-                return
+        elif klass is Global:
+            # print(3)
+            yield from self._get_global_nodes()
 
-            if klass is Return:
-                # print(5)
-                yield from self._get_return_nodes()
-                return
+        elif klass is Nonlocal:
+            # print(4)
+            yield from self._get_nonlocal_nodes()
 
-            if klass is Call:
-                # print(6)
-                yield from self._get_call_nodes()
-                return
+        elif klass is Return:
+            # print(5)
+            yield from self._get_return_nodes()
 
-            if klass is Starred:
-                # print(7)
-                yield from self._get_starred_nodes()
-                return
+        elif klass is Call:
+            # print(6)
+            yield from self._get_call_nodes()
 
-        from astroid.scoped_nodes import ClassDef, FunctionDef
+        elif klass is Starred:
+            # print(7)
+            yield from self._get_starred_nodes()
 
-        # if skip_klass is FunctionDef:
-        #     if klass is Return:
-        #         pass
-        #         # print(8)
-        #         yield from self._get_return_nodes_skip_functions()
-        #         return
+        else:
+            yield from self._nodes_of_class_generic_no_skip(klass)
 
-        if skip_klass == (FunctionDef, ClassDef):
-            if klass is Return:
-                yield from self._get_return_nodes_skip_functions_and_classes()
-                return
-
-        # print(klass, skip_klass)
-
+    def _nodes_of_class_generic(self, klass, skip_klass):
         if isinstance(self, klass):
             yield self
-
-        if skip_klass is None:
-            for child_node in self.get_children():
-                yield from child_node.nodes_of_class(klass, skip_klass)
-
-            return
 
         for child_node in self.get_children():
             if isinstance(child_node, skip_klass):
                 continue
-            yield from child_node.nodes_of_class(klass, skip_klass)
+            yield from child_node._nodes_of_class_generic(klass, skip_klass)
+
+    def _nodes_of_class_generic_no_skip(self, klass):
+        if isinstance(self, klass):
+            yield self
+
+        for child_node in self.get_children():
+            yield from child_node._nodes_of_class_generic_no_skip(klass)
 
     def _get_starred_nodes(self):
         for child in self.get_children():
@@ -2186,12 +2171,6 @@ class Call(NodeNG):
         yield from self.args
 
         yield from self.keywords or ()
-
-    def nodes_of_class(self, klass, skip_klass=None):
-        if klass in (Global, Nonlocal):
-            yield from ()
-        else:
-            yield from super().nodes_of_class(klass, skip_klass)
 
     def _get_call_nodes(self):
         yield self
