@@ -700,8 +700,9 @@ class NodeNG(object):
             yield from child_node._get_name_nodes()
 
     def _get_assignname_nodes(self):
-        for child_node in self.get_children():
-            yield from child_node._get_assignname_nodes()
+        yield from ()
+        # for child_node in self.get_children():
+        #     yield from child_node._get_assignname_nodes()
 
     def _get_return_nodes(self):
         yield from ()
@@ -1787,6 +1788,10 @@ class Assign(mixins.AssignTypeMixin, Statement):
         yield self
 
         yield from self.value._get_assign_nodes()
+
+    def _get_assignname_nodes(self):
+        for child in self.get_children():
+            yield from child._get_assignname_nodes()
 
 
 class AnnAssign(mixins.AssignTypeMixin, Statement):

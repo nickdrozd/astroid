@@ -156,6 +156,11 @@ class MultiLineBlockMixin:
             for child_node in block:
                 yield from child_node._get_assign_nodes()
 
+    def _get_assignname_nodes(self):
+        for block in self._multi_line_blocks:
+            for child_node in self.get_children():
+                yield from child_node._get_assignname_nodes()
+
     def _get_global_nodes(self):
         for block in self._multi_line_blocks:
             for child_node in block:
