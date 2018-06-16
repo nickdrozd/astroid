@@ -1057,7 +1057,7 @@ class LookupMixIn(object):
         #
         # take care node may be missing lineno information (this is the case for
         # nodes inserted for living objects)
-        if myframe is frame and mystmt.fromlineno is not None:
+        if myframe is frame:
             assert mystmt.fromlineno is not None, mystmt
             mylineno = mystmt.fromlineno + offset
         else:
