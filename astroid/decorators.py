@@ -119,17 +119,16 @@ def raise_if_nothing_inferred(func, instance, args, kwargs):
     explicitly raise StopIteration with information to create an
     appropriate structured InferenceError.
     """
-    inferred = False
+    generator = func(*args, **kwargs)
+
     try:
-        generator = func(*args, **kwargs)
-        while True:
-            yield next(generator)
-            inferred = True
+        yield next(generator)
     except StopIteration as error:
-        if not inferred:
-            if error.args:
-                # pylint: disable=not-a-mapping
-                raise exceptions.InferenceError(**error.args[0])
-            else:
-                raise exceptions.InferenceError(
-                    'StopIteration raised without any error information.')
+        if error.args:
+            # pylint: disable=not-a-mapping
+            raise exceptions.InferenceError(**error.args[0])
+        else:
+            raise exceptions.InferenceError(
+                'StopIteration raised without any error information.')
+
+    yield from generator
