@@ -290,8 +290,7 @@ class TreeRebuilder(object):
 
     def visit_assignname(self, node, parent, node_name=None):
         '''visit a node and return a AssignName node'''
-        newnode = nodes.AssignName(node_name, getattr(node, 'lineno', None),
-                                   getattr(node, 'col_offset', None), parent)
+        newnode = nodes.AssignName(node_name, node.lineno, node.col_offset, parent)
         self._save_assignment(newnode)
         return newnode
 
@@ -327,9 +326,7 @@ class TreeRebuilder(object):
 
     def visit_break(self, node, parent):
         """visit a Break node by returning a fresh instance of it"""
-        return nodes.Break(getattr(node, 'lineno', None),
-                           getattr(node, 'col_offset', None),
-                           parent)
+        return nodes.Break(node.lineno, node.col_offset, parent)
 
     def visit_call(self, node, parent):
         """visit a CallFunc node by returning a fresh instance of it"""
@@ -390,15 +387,11 @@ class TreeRebuilder(object):
 
     def visit_const(self, node, parent):
         """visit a Const node by returning a fresh instance of it"""
-        return nodes.Const(node.value,
-                           getattr(node, 'lineno', None),
-                           getattr(node, 'col_offset', None), parent)
+        return nodes.Const(node.value, node.lineno, node.col_offset, parent)
 
     def visit_continue(self, node, parent):
         """visit a Continue node by returning a fresh instance of it"""
-        return nodes.Continue(getattr(node, 'lineno', None),
-                              getattr(node, 'col_offset', None),
-                              parent)
+        return nodes.Continue(node.lineno, node.col_offset, parent)
 
     def visit_compare(self, node, parent):
         """visit a Compare node by returning a fresh instance of it"""
@@ -471,15 +464,11 @@ class TreeRebuilder(object):
 
     def visit_ellipsis(self, node, parent):
         """visit an Ellipsis node by returning a fresh instance of it"""
-        return nodes.Ellipsis(getattr(node, 'lineno', None),
-                              getattr(node, 'col_offset', None), parent)
-
+        return nodes.Ellipsis(node.lineno, node.col_offset, parent)
 
     def visit_emptynode(self, node, parent):
         """visit an EmptyNode node by returning a fresh instance of it"""
-        return nodes.EmptyNode(getattr(node, 'lineno', None),
-                               getattr(node, 'col_offset', None), parent)
-
+        return nodes.EmptyNode(node.lineno, node.col_offset, parent)
 
     def visit_excepthandler(self, node, parent):
         """visit an ExceptHandler node by returning a fresh instance of it"""
@@ -526,8 +515,7 @@ class TreeRebuilder(object):
         """visit an ImportFrom node by returning a fresh instance of it"""
         names = [(alias.name, alias.asname) for alias in node.names]
         newnode = nodes.ImportFrom(node.module or '', names, node.level or None,
-                                   getattr(node, 'lineno', None),
-                                   getattr(node, 'col_offset', None), parent)
+                                   node.lineno, node.col_offset, parent)
         # store From names to add them to locals after building
         self._import_from_nodes.append(newnode)
         return newnode
@@ -595,8 +583,7 @@ class TreeRebuilder(object):
 
     def visit_global(self, node, parent):
         """visit a Global node to become astroid"""
-        newnode = nodes.Global(node.names, getattr(node, 'lineno', None),
-                               getattr(node, 'col_offset', None), parent)
+        newnode = nodes.Global(node.names, node.lineno, node.col_offset, parent)
         if self._global_names: # global at the module level, no effect
             for name in node.names:
                 self._global_names[-1].setdefault(name, []).append(newnode)
@@ -623,8 +610,7 @@ class TreeRebuilder(object):
     def visit_import(self, node, parent):
         """visit a Import node by returning a fresh instance of it"""
         names = [(alias.name, alias.asname) for alias in node.names]
-        newnode = nodes.Import(names, getattr(node, 'lineno', None),
-                               getattr(node, 'col_offset', None), parent)
+        newnode = nodes.Import(names, node.lineno, node.col_offset, parent)
         # save import names in parent's locals:
         for (name, asname) in newnode.names:
             name = asname or name
@@ -682,8 +668,9 @@ class TreeRebuilder(object):
                                        parent)
         elif node.id in CONST_NAME_TRANSFORMS:
             newnode = nodes.Const(CONST_NAME_TRANSFORMS[node.id],
-                                  getattr(node, 'lineno', None),
-                                  getattr(node, 'col_offset', None), parent)
+                                  node.lineno,
+                                  node.col_offset,
+                                  parent)
             return newnode
         else:
             newnode = nodes.Name(node.id, node.lineno, node.col_offset, parent)
@@ -694,14 +681,12 @@ class TreeRebuilder(object):
 
     def visit_str(self, node, parent):
         """visit a String/Bytes node by returning a fresh instance of Const"""
-        return nodes.Const(node.s, getattr(node, 'lineno', None),
-                           getattr(node, 'col_offset', None), parent)
+        return nodes.Const(node.s, node.lineno, node.col_offset, parent)
     visit_bytes = visit_str
 
     def visit_num(self, node, parent):
         """visit a Num node by returning a fresh instance of Const"""
-        return nodes.Const(node.n, getattr(node, 'lineno', None),
-                           getattr(node, 'col_offset', None), parent)
+        return nodes.Const(node.n, node.lineno, node.col_offset, parent)
 
     def visit_pass(self, node, parent):
         """visit a Pass node by returning a fresh instance of it"""
@@ -846,8 +831,7 @@ class TreeRebuilder3(TreeRebuilder):
 
     def visit_nameconstant(self, node, parent):
         # in Python 3.4 we have NameConstant for True / False / None
-        return nodes.Const(node.value, getattr(node, 'lineno', None),
-                           getattr(node, 'col_offset', None), parent)
+        return nodes.Const(node.value, node.lineno, node.col_offset, parent)
 
     def visit_excepthandler(self, node, parent):
         """visit an ExceptHandler node by returning a fresh instance of it"""
@@ -864,8 +848,7 @@ class TreeRebuilder3(TreeRebuilder):
 
     def visit_nonlocal(self, node, parent):
         """visit a Nonlocal node and return a new instance of it"""
-        return nodes.Nonlocal(node.names, getattr(node, 'lineno', None),
-                              getattr(node, 'col_offset', None), parent)
+        return nodes.Nonlocal(node.names, node.lineno, node.col_offset, parent)
 
     def visit_raise(self, node, parent):
         """visit a Raise node by returning a fresh instance of it"""
