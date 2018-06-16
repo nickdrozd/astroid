@@ -301,6 +301,7 @@ class NodeNG(object):
 
         return context.cache_generator(key, self._infer(context, **kwargs))
 
+    @lru_cache(maxsize=None)
     def _repr_name(self):
         """Get a name for nice representation.
 
@@ -314,6 +315,7 @@ class NodeNG(object):
             return getattr(self, 'name', getattr(self, 'attrname', ''))
         return ''
 
+    @lru_cache(maxsize=None)
     def __str__(self):
         rname = self._repr_name()
         cname = type(self).__name__
@@ -339,6 +341,7 @@ class NodeNG(object):
                          'rname': rname,
                          'fields': (',\n' + ' ' * alignment).join(result)}
 
+    @lru_cache(maxsize=None)
     def __repr__(self):
         rname = self._repr_name()
         if rname:
@@ -403,6 +406,7 @@ class NodeNG(object):
             parent = parent.parent
         return False
 
+    @lru_cache(maxsize=None)
     def statement(self):
         """The first parent node, including self, marked as statement node.
 
@@ -413,6 +417,7 @@ class NodeNG(object):
             return self
         return self.parent.statement()
 
+    @lru_cache(maxsize=None)
     def frame(self):
         """The first parent frame node.
 
@@ -424,6 +429,7 @@ class NodeNG(object):
         """
         return self.parent.frame()
 
+    @lru_cache(maxsize=None)
     def scope(self):
         """The first parent node defining a new scope.
 
@@ -662,6 +668,7 @@ class NodeNG(object):
         raise exceptions.InferenceError('No inference function for {node!r}.',
                                         node=self, context=context)
 
+    @lru_cache(maxsize=None)
     def inferred(self):
         """Get a list of the inferred values.
 
@@ -705,6 +712,7 @@ class NodeNG(object):
     def eq(self, value):
         return False
 
+    @lru_cache(maxsize=None)
     def as_string(self):
         """Get the source code that this node represents.
 
@@ -2340,6 +2348,7 @@ class Const(mixins.NoChildrenMixin, NodeNG, bases.Instance):
         """
         return False
 
+    @lru_cache(maxsize=None)
     def itered(self):
         """An iterator over the elements this node contains.
 
@@ -2409,6 +2418,7 @@ class Decorators(NodeNG):
         """
         self.nodes = nodes
 
+    @lru_cache(maxsize=None)
     def scope(self):
         """The first parent node defining a new scope.
 
@@ -2590,6 +2600,7 @@ class Dict(NodeNG, bases.Instance):
             return self.items[-1][1]
         return None
 
+    @lru_cache(maxsize=None)
     def itered(self):
         """An iterator over the keys this node contains.
 
@@ -2625,6 +2636,7 @@ class Dict(NodeNG, bases.Instance):
 
         raise exceptions.AstroidIndexError(index)
 
+    @lru_cache(maxsize=None)
     def bool_value(self):
         """Determine the boolean value of this node.
 
@@ -2768,6 +2780,7 @@ class ExceptHandler(mixins.MultiLineBlockMixin,
             return self.type.tolineno
         return self.lineno
 
+    @lru_cache(maxsize=None)
     def catch(self, exceptions): # pylint: disable=redefined-outer-name
         """Check if this node handles any of the given exceptions.
 
@@ -3554,6 +3567,7 @@ class Raise(Statement):
         self.exc = exc
         self.cause = cause
 
+    @lru_cache(maxsize=None)
     def raises_not_implemented(self):
         """Check if this node raises a :class:`NotImplementedError`.
 

@@ -18,6 +18,7 @@ import builtins
 import sys
 import io
 import itertools
+from functools import lru_cache
 from typing import Optional, List
 
 from astroid import bases
@@ -228,6 +229,7 @@ class LocalsDictNodeNG(node_classes.LookupMixIn,
         """
         return iter(self.keys())
 
+    @lru_cache(maxsize=None)
     def keys(self):
         """The names of locals defined in this scoped node.
 
@@ -236,6 +238,7 @@ class LocalsDictNodeNG(node_classes.LookupMixIn,
         """
         return list(self.locals.keys())
 
+    @lru_cache(maxsize=None)
     def values(self):
         """The nodes that define the locals in this scoped node.
 
@@ -244,6 +247,7 @@ class LocalsDictNodeNG(node_classes.LookupMixIn,
         """
         return [self[key] for key in self.keys()]
 
+    @lru_cache(maxsize=None)
     def items(self):
         """Get the names of the locals and the node that defines the local.
 
@@ -252,6 +256,7 @@ class LocalsDictNodeNG(node_classes.LookupMixIn,
         """
         return list(zip(self.keys(), self.values()))
 
+    @lru_cache(maxsize=None)
     def __contains__(self, name):
         """Check if a local is defined in this scope.
 
@@ -522,6 +527,7 @@ class Module(LocalsDictNodeNG):
                 context=context,
             ) from error
 
+    @lru_cache(maxsize=None)
     def fully_defined(self):
         """Check if this module has been build from a .py file.
 
@@ -634,6 +640,7 @@ class Module(LocalsDictNodeNG):
             return '%s.%s' % (package_name, modname)
         return modname
 
+    @lru_cache(maxsize=None)
     def wildcard_import_names(self):
         """The list of imported names when this module is 'wildcard imported'.
 
@@ -683,6 +690,7 @@ class Module(LocalsDictNodeNG):
                     inferred.append(inferred_node.value)
         return inferred
 
+    @lru_cache(maxsize=None)
     def public_names(self):
         """The list of the names that are publicly available in this module.
 
@@ -706,6 +714,7 @@ class Module(LocalsDictNodeNG):
 
 class ComprehensionScope(LocalsDictNodeNG):
     """Scoping for different types of comprehensions."""
+    @lru_cache(maxsize=None)
     def frame(self):
         """The first parent frame node.
 
@@ -1100,6 +1109,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
         self.args = args
         self.body = body
 
+    @lru_cache(maxsize=None)
     def pytype(self):
         """Get the name of the type that this node represents.
 
@@ -1110,6 +1120,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
             return '%s.instancemethod' % BUILTINS
         return '%s.function' % BUILTINS
 
+    @lru_cache(maxsize=None)
     def display_type(self):
         """A human readable type of this node.
 
@@ -1130,6 +1141,7 @@ class Lambda(mixins.FilterStmtsMixin, LocalsDictNodeNG):
         """
         return True
 
+    @lru_cache(maxsize=None)
     def argnames(self):
         """Get the names of each of the arguments.
 
@@ -1520,6 +1532,7 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
                 continue
         return result
 
+    @lru_cache(maxsize=None)
     def is_bound(self):
         """Check if the function is bound to an instance or class.
 
@@ -1559,6 +1572,7 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
         if pass_is_abstract:
             return True
 
+    @lru_cache(maxsize=None)
     def is_generator(self):
         """Check if this is a generator function.
 
@@ -1862,6 +1876,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
     def implicit_parameters(self):
         return 1
 
+    @lru_cache(maxsize=None)
     def implicit_locals(self):
         """Get implicitly defined class definition locals.
 
@@ -2454,6 +2469,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
             if isinstance(member, FunctionDef):
                 yield member
 
+    @lru_cache(maxsize=None)
     def implicit_metaclass(self):
         """Get the implicit metaclass of the current class.
 
@@ -2469,6 +2485,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
         return None
 
     _metaclass = None
+    @lru_cache(maxsize=None)
     def declared_metaclass(self):
         """Return the explicit declared metaclass for the current class.
 
@@ -2516,6 +2533,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
                         break
         return klass
 
+    @lru_cache(maxsize=None)
     def metaclass(self):
         """Get the metaclass of this class.
 
@@ -2583,6 +2601,7 @@ class ClassDef(mixins.FilterStmtsMixin, LocalsDictNodeNG,
 
         return None
 
+    @lru_cache(maxsize=None)
     def _slots(self):
         if not self.newstyle:
             raise NotImplementedError(
