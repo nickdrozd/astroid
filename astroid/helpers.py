@@ -10,6 +10,7 @@ Various helper utilities.
 """
 
 import builtins as builtins_mod
+from functools import lru_cache
 
 from astroid import bases
 from astroid import context as contextmod
@@ -139,6 +140,7 @@ def object_issubclass(node, class_or_seq, context=None):
     return _object_type_is_subclass(node, class_or_seq, context=context)
 
 
+@lru_cache(maxsize=None)
 def safe_infer(node, context=None):
     """Return the inferred value for the given node.
 
