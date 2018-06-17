@@ -361,14 +361,22 @@ class NodeNG(object):
         :returns: The children.
         :rtype: iterable(NodeNG)
         """
+        yield from self._children
+
+    @decorators.cachedproperty
+    def _children(self):
+        result = []
         for field in self._astroid_fields:
             attr = getattr(self, field)
             if attr is None:
                 continue
             if isinstance(attr, (list, tuple)):
-                yield from attr
+                for child in attr:
+                    if child is not None:
+                        result.append(child)
             else:
-                yield attr
+                result.append(attr)
+        return tuple(result)
 
     def last_child(self):
         """An optimized version of list(get_children())[-1]
@@ -1506,30 +1514,6 @@ class Arguments(mixins.AssignTypeMixin, NodeNG):
             return _find_arg(argname, self.args, rec)
         return None, None
 
-    def get_children(self):
-        yield from self.args or ()
-
-        yield from self.defaults
-        yield from self.kwonlyargs
-
-        for elt in self.kw_defaults:
-            if elt is not None:
-                yield elt
-
-        for elt in self.annotations:
-            if elt is not None:
-                yield elt
-
-        if self.varargannotation is not None:
-            yield self.varargannotation
-
-        if self.kwargannotation is not None:
-            yield self.kwargannotation
-
-        for elt in self.kwonlyargs_annotations:
-            if elt is not None:
-                yield elt
-
 
 def _find_arg(argname, args, rec=False):
     for i, arg in enumerate(args):
@@ -1654,12 +1638,6 @@ class Assert(Statement):
         self.fail = fail
         self.test = test
 
-    def get_children(self):
-        yield self.test
-
-        if self.fail is not None:
-            yield self.fail
-
 
 class Assign(mixins.AssignTypeMixin, Statement):
     """Class representing an :class:`ast.Assign` node.
@@ -1766,13 +1744,6 @@ class AnnAssign(mixins.AssignTypeMixin, Statement):
         self.annotation = annotation
         self.value = value
         self.simple = simple
-
-    def get_children(self):
-        yield self.target
-        yield self.annotation
-
-        if self.value is not None:
-            yield self.value
 
 
 class AugAssign(mixins.AssignTypeMixin, Statement):
@@ -2088,13 +2059,6 @@ class Call(NodeNG):
         """
         keywords = self.keywords or []
         return [keyword for keyword in keywords if keyword.arg is None]
-
-    def get_children(self):
-        yield self.func
-
-        yield from self.args
-
-        yield from self.keywords or ()
 
 
 class Compare(NodeNG):
@@ -2729,15 +2693,6 @@ class ExceptHandler(mixins.MultiLineBlockMixin,
 
     :type: list(NodeNG) or None
     """
-
-    def get_children(self):
-        if self.type is not None:
-            yield self.type
-
-        if self.name is not None:
-            yield self.name
-
-        yield from self.body
 
     # pylint: disable=redefined-builtin; had to use the same name as builtin ast module.
     def postinit(self, type=None, name=None, body=None):
@@ -3568,13 +3523,6 @@ class Raise(Statement):
                 return True
         return False
 
-    def get_children(self):
-        if self.exc is not None:
-            yield self.exc
-
-        if self.cause is not None:
-            yield self.cause
-
 
 class Return(Statement):
     """Class representing an :class:`ast.Return` node.
@@ -3597,10 +3545,6 @@ class Return(Statement):
         :type value: NodeNG or None
         """
         self.value = value
-
-    def get_children(self):
-        if self.value is not None:
-            yield self.value
 
     def _get_return_nodes_skip_functions(self):
         yield self
@@ -3706,16 +3650,6 @@ class Slice(NodeNG):
 
     def getattr(self, attrname, context=None):
         return self._proxied.getattr(attrname, context)
-
-    def get_children(self):
-        if self.lower is not None:
-            yield self.lower
-
-        if self.upper is not None:
-            yield self.upper
-
-        if self.step is not None:
-            yield self.step
 
 
 class Starred(mixins.ParentAssignTypeMixin, NodeNG):
@@ -3899,12 +3833,6 @@ class TryExcept(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
             if last is None:
                 last = exhandler.body[0].fromlineno - 1
         return self._elsed_block_range(lineno, self.orelse, last)
-
-    def get_children(self):
-        yield from self.body
-
-        yield from self.handlers or ()
-        yield from self.orelse or ()
 
 
 class TryFinally(mixins.MultiLineBlockMixin,
@@ -4213,17 +4141,15 @@ class With(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn,
         """
         return self.items[-1][0].tolineno
 
-    def get_children(self):
-        """Get the child nodes below this node.
-
-        :returns: The children.
-        :rtype: iterable(NodeNG)
-        """
+    @decorators.cachedproperty
+    def _children(self):
+        result = []
         for expr, var in self.items:
-            yield expr
+            result.append(expr)
             if var:
-                yield var
-        yield from self.body
+                result.append(var)
+        result.extend(self.body)
+        return tuple(result)
 
 
 class AsyncWith(With):
@@ -4251,10 +4177,6 @@ class Yield(NodeNG):
         :type value: NodeNG or None
         """
         self.value = value
-
-    def get_children(self):
-        if self.value is not None:
-            yield self.value
 
     def _get_yield_nodes_skip_lambdas(self):
         yield self
@@ -4317,12 +4239,6 @@ class FormattedValue(NodeNG):
         self.value = value
         self.conversion = conversion
         self.format_spec = format_spec
-
-    def get_children(self):
-        yield self.value
-
-        if self.format_spec is not None:
-            yield self.format_spec
 
 
 class JoinedStr(NodeNG):
