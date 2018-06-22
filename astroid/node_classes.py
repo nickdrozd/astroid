@@ -625,19 +625,39 @@ class NodeNG(object):
         :returns: The node of the given type.
         :rtype: iterable(NodeNG)
         """
+        if skip_klass is not None:
+            if isinstance(skip_klass, (tuple, list)):
+                yield from self._nodes_of_class_generic(klass, skip_klass)
+                return
+
+            if klass is Return and skip_klass.is_function:
+                yield from self._get_return_nodes_skip_functions()
+                return
+
+            yield from self._nodes_of_class_generic(klass, skip_klass)
+            return
+
+        if klass is Name:
+            yield from self._get_name_nodes()
+
+        else:
+            yield from self._nodes_of_class_generic_no_skip(klass)
+
+    def _nodes_of_class_generic_no_skip(self, klass):
         if isinstance(self, klass):
             yield self
 
-        if skip_klass is None:
-            for child_node in self.get_children():
-                yield from child_node.nodes_of_class(klass, skip_klass)
+        for child_node in self.get_children():
+            yield from child_node._nodes_of_class_generic_no_skip(klass)
 
-            return
+    def _nodes_of_class_generic(self, klass, skip_klass):
+        if isinstance(self, klass):
+            yield self
 
         for child_node in self.get_children():
             if isinstance(child_node, skip_klass):
                 continue
-            yield from child_node.nodes_of_class(klass, skip_klass)
+            yield from child_node._nodes_of_class_generic(klass, skip_klass)
 
     def _get_assign_nodes(self):
         yield from ()
