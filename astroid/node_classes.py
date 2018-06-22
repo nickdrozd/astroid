@@ -1267,9 +1267,6 @@ class Name(mixins.NoChildrenMixin, LookupMixIn, NodeNG):
     def _get_name_nodes(self):
         yield self
 
-        for child_node in self.get_children():
-            yield from child_node._get_name_nodes()
-
 
 class Arguments(mixins.AssignTypeMixin, NodeNG):
     """Class representing an :class:`ast.arguments` node.
