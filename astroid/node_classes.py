@@ -640,7 +640,23 @@ class NodeNG(object):
         if klass is Name:
             yield from self._get_name_nodes()
 
+        elif klass is Global:
+            yield from self._get_global_nodes()
+
+        elif klass is Nonlocal:
+            yield from self._get_nonlocal_nodes()
+
+        elif klass is Starred:
+            yield from self._get_starred_nodes()
+
+        elif klass is AssignName:
+            yield from self._get_assignname_nodes()
+
+        elif klass is Call:
+            yield from self._get_call_nodes()
+
         else:
+            print(klass)
             yield from self._nodes_of_class_generic_no_skip(klass)
 
     def _nodes_of_class_generic_no_skip(self, klass):
@@ -662,9 +678,27 @@ class NodeNG(object):
     def _get_assign_nodes(self):
         yield from ()
 
+    def _get_global_nodes(self):
+        yield from ()
+
+    def _get_nonlocal_nodes(self):
+        yield from ()
+
     def _get_name_nodes(self):
         for child_node in self.get_children():
             yield from child_node._get_name_nodes()
+
+    def _get_assignname_nodes(self):
+        for child_node in self.get_children():
+            yield from child_node._get_assignname_nodes()
+
+    def _get_starred_nodes(self):
+        for child_node in self.get_children():
+            yield from child_node._get_starred_nodes()
+
+    def _get_call_nodes(self):
+        for child_node in self.get_children():
+            yield from child_node._get_call_nodes()
 
     def _get_return_nodes_skip_functions(self):
         yield from ()
@@ -1205,6 +1239,9 @@ class AssignName(mixins.NoChildrenMixin, LookupMixIn,
         """
 
         super(AssignName, self).__init__(lineno, col_offset, parent)
+
+    def _get_assignname_nodes(self):
+        yield self
 
 
 class DelName(mixins.NoChildrenMixin, LookupMixIn,
@@ -2117,6 +2154,12 @@ class Call(NodeNG):
         yield from self.args
 
         yield from self.keywords or ()
+
+    def _get_call_nodes(self):
+        yield self
+
+        for child_node in self.get_children():
+            yield from child_node._get_call_nodes()
 
 
 class Compare(NodeNG):
@@ -3152,6 +3195,9 @@ class Global(mixins.NoChildrenMixin, Statement):
     def _infer_name(self, frame, name):
         return name
 
+    def _get_global_nodes(self):
+        yield self
+
 
 class If(mixins.MultiLineBlockMixin, mixins.BlockRangeMixIn, Statement):
     """Class representing an :class:`ast.If` node.
@@ -3480,6 +3526,9 @@ class Nonlocal(mixins.NoChildrenMixin, Statement):
     def _infer_name(self, frame, name):
         return name
 
+    def _get_nonlocal_nodes(self):
+        yield self
+
 
 class Pass(mixins.NoChildrenMixin, Statement):
     """Class representing an :class:`ast.Pass` node.
@@ -3789,6 +3838,9 @@ class Starred(mixins.ParentAssignTypeMixin, NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def _get_starred_nodes(self):
+        yield self
 
 
 class Subscript(NodeNG):
