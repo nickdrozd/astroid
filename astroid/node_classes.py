@@ -626,16 +626,22 @@ class NodeNG(object):
         :rtype: iterable(NodeNG)
         """
         if skip_klass is not None:
-            if isinstance(skip_klass, (tuple, list)):
+            # this is for convenience
+            if not isinstance(skip_klass, (tuple, list)):
+                skip_klass = (skip_klass,)
+
+            if not any(skip.is_function for skip in skip_klass):
                 yield from self._nodes_of_class_generic(klass, skip_klass)
                 return
 
-            if klass is Return and skip_klass.is_function:
+            if klass is Return:
                 yield from self._get_return_nodes_skip_functions()
-                return
 
-            yield from self._nodes_of_class_generic(klass, skip_klass)
-            return
+            elif klass is Break:
+                yield from self._get_break_nodes_skip_functions()
+
+            else:
+                yield from self._nodes_of_class_generic(klass, skip_klass)
 
         if klass is Name:
             yield from self._get_name_nodes()
@@ -656,7 +662,6 @@ class NodeNG(object):
             yield from self._get_call_nodes()
 
         else:
-            print(klass)
             yield from self._nodes_of_class_generic_no_skip(klass)
 
     def _nodes_of_class_generic_no_skip(self, klass):
@@ -701,6 +706,9 @@ class NodeNG(object):
             yield from child_node._get_call_nodes()
 
     def _get_return_nodes_skip_functions(self):
+        yield from ()
+
+    def _get_break_nodes_skip_functions(self):
         yield from ()
 
     def _get_yield_nodes_skip_lambdas(self):
@@ -2086,6 +2094,8 @@ class Break(mixins.NoChildrenMixin, Statement):
     >>> node
     <Break l.1 at 0x7f23b2e9e5c0>
     """
+    def _get_break_nodes_skip_functions(self):
+        yield self
 
 
 class Call(NodeNG):

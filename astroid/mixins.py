@@ -132,6 +132,13 @@ class MultiLineBlockMixin:
                     continue
                 yield from child_node._get_return_nodes_skip_functions()
 
+    def _get_break_nodes_skip_functions(self):
+        for block in self._multi_line_blocks:
+            for child_node in block:
+                if child_node.is_function:
+                    continue
+                yield from child_node._get_break_nodes_skip_functions()
+
     def _get_yield_nodes_skip_lambdas(self):
         for block in self._multi_line_blocks:
             for child_node in block:
@@ -158,4 +165,31 @@ class MultiLineBlockMixin:
 class NoChildrenMixin:
     """Mixin for nodes with no children, e.g. Pass."""
     def get_children(self):
+        yield from ()
+
+    def _get_return_nodes_skip_functions(self):
+        yield from ()
+
+    def _get_break_nodes_skip_functions(self):
+        yield from ()
+
+    def _get_yield_nodes_skip_lambdas(self):
+        yield from ()
+
+    def _get_assign_nodes(self):
+        yield from ()
+
+    def _get_assignname_nodes(self):
+        yield from ()
+
+    def _get_global_nodes(self):
+        yield from ()
+
+    def _get_nonlocal_nodes(self):
+        yield from ()
+
+    def _get_call_nodes(self):
+        yield from ()
+
+    def _get_starred_nodes(self):
         yield from ()
