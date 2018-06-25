@@ -1567,6 +1567,10 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
         """
         return next(self._get_yield_nodes_skip_lambdas(), False)
 
+    @decorators_mod.cachedproperty
+    def _returns(self):
+        return tuple(self._get_return_nodes_skip_functions())
+
     def infer_call_result(self, caller=None, context=None, context_lookup=None):
         """Infer what the function returns when called.
 
@@ -1600,13 +1604,12 @@ class FunctionDef(mixins.MultiLineBlockMixin, node_classes.Statement, Lambda):
                 )
                 yield new_class
                 return
-        returns = self._get_return_nodes_skip_functions()
 
-        first_return = next(returns, None)
+        first_return = self._returns[0] if self._returns else None
         if not first_return:
             raise exceptions.InferenceError('Empty return iterator')
 
-        for returnnode in itertools.chain((first_return,), returns):
+        for returnnode in itertools.chain((first_return,), self._returns):
             if returnnode.value is None:
                 yield node_classes.Const(None)
             else:
