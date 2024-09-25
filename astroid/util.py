@@ -8,12 +8,14 @@ from __future__ import annotations
 import contextlib
 import sys
 import warnings
-from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import TYPE_CHECKING
 
 from astroid.exceptions import InferenceError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+    from typing import Any, Final, Literal
+
     from astroid import bases, nodes
     from astroid.context import InferenceContext
     from astroid.typing import InferenceResult

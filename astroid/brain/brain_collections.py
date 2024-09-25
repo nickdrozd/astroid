@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING
 from astroid.brain.helpers import register_module_extender
 from astroid.builder import AstroidBuilder, extract_node, parse
 from astroid.const import PY313_PLUS
-from astroid.context import InferenceContext
 from astroid.exceptions import AttributeInferenceError
 from astroid.manager import AstroidManager
 from astroid.nodes.scoped_nodes import ClassDef
 
 if TYPE_CHECKING:
     from astroid import nodes
+    from astroid.context import InferenceContext
 
 
 def _collections_transform():

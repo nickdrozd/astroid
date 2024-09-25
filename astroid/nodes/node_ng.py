@@ -5,23 +5,18 @@
 from __future__ import annotations
 
 import pprint
-import sys
 import warnings
-from collections.abc import Generator, Iterator
 from functools import cached_property
 from functools import singledispatch as _singledispatch
 from typing import (
     TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Literal,
     TypeVar,
     Union,
     cast,
     overload,
 )
 
-from astroid import nodes, util
+from astroid import util
 from astroid.context import InferenceContext
 from astroid.exceptions import (
     AstroidError,
@@ -33,17 +28,21 @@ from astroid.exceptions import (
 from astroid.manager import AstroidManager
 from astroid.nodes.as_string import AsStringVisitor
 from astroid.nodes.const import OP_PRECEDENCE
-from astroid.nodes.utils import Position
-from astroid.typing import InferenceErrorInfo, InferenceResult, InferFn
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+    from sys import version_info
+    from typing import Any, ClassVar, Literal
+
+    from astroid import nodes
     from astroid.nodes import _base_nodes
+    from astroid.nodes.utils import Position
+    from astroid.typing import InferenceErrorInfo, InferenceResult, InferFn
+
+    if version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 
 
 # Types for 'NodeNG.nodes_of_class()'
@@ -331,12 +330,12 @@ class NodeNG:
         :returns: The root node.
         """
         if not (parent := self.parent):
-            assert isinstance(self, nodes.Module)
+            # assert isinstance(self, nodes.Module)
             return self
 
         while parent.parent:
             parent = parent.parent
-        assert isinstance(parent, nodes.Module)
+        # assert isinstance(parent, nodes.Module)
         return parent
 
     def child_sequence(self, child):
