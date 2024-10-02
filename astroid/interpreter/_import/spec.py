@@ -346,10 +346,11 @@ def _search_zip(
     modpath: tuple[str, ...],
 ) -> tuple[Literal[ModuleType.PY_ZIPMODULE], str, str]:
     for filepath, importer in _get_zipimporters():
-        if PY310_PLUS:
-            found = importer.find_spec(modpath[0])
-        else:
-            found = importer.find_module(modpath[0])
+        found = (
+            importer.find_spec(modpath[0])
+            if PY310_PLUS
+            else importer.find_module(modpath[0])
+        )
         if found:
             if PY310_PLUS:
                 if not importer.find_spec(os.path.sep.join(modpath)):

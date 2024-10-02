@@ -167,12 +167,8 @@ class AsStringVisitor:
         """return an astroid.Call node as string"""
         expr_str = self._precedence_parens(node, node.func)
         args = [arg.accept(self) for arg in node.args]
-        if node.keywords:
-            keywords = [kwarg.accept(self) for kwarg in node.keywords]
-        else:
-            keywords = []
 
-        args.extend(keywords)
+        args.extend([kwarg.accept(self) for kwarg in node.keywords])
         return f"{expr_str}({', '.join(args)})"
 
     def visit_classdef(self, node: nodes.ClassDef) -> str:
@@ -555,11 +551,7 @@ class AsStringVisitor:
 
     def visit_unaryop(self, node: nodes.UnaryOp) -> str:
         """return an astroid.UnaryOp node as string"""
-        if node.op == "not":
-            operator = "not "
-        else:
-            operator = node.op
-        return f"{operator}{self._precedence_parens(node, node.operand)}"
+        return f"{'not ' if node.op == 'not' else node.op}{self._precedence_parens(node, node.operand)}"
 
     def visit_while(self, node: nodes.While) -> str:
         """return an astroid.While node as string"""

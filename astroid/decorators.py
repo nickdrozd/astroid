@@ -51,10 +51,7 @@ def path_wrapper(func):
 
         for res in _func(node, context, **kwargs):
             # unproxy only true instance, not const, tuple, dict...
-            if res.__class__.__name__ == "Instance":
-                ares = res._proxied
-            else:
-                ares = res
+            ares = res._proxied if res.__class__.__name__ == "Instance" else res
             if ares not in yielded:
                 yield res
                 yielded.add(ares)

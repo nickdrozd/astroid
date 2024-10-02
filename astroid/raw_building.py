@@ -162,10 +162,13 @@ def build_function(
     # If args is None we don't have any information about the signature
     # (in contrast to when there are no arguments and args == []). We pass
     # this to the builder to indicate this.
-    if args is not None:
-        # We set the lineno and col_offset to 0 because we don't have any
-        # information about the location of the function definition.
-        arguments = [
+
+    arguments = (
+        None
+        if args is None
+        else [
+            # We set the lineno and col_offset to 0 because we don't have any
+            # information about the location of the function definition.
             nodes.AssignName(
                 name=arg,
                 parent=argsnode,
@@ -176,8 +179,7 @@ def build_function(
             )
             for arg in args
         ]
-    else:
-        arguments = None
+    )
 
     default_nodes: list[nodes.NodeNG] | None
     if defaults is None:

@@ -1041,10 +1041,7 @@ def _format_args(
         return ""
     if annotations is None:
         annotations = []
-    if defaults is not None:
-        default_offset = len(args) - len(defaults)
-    else:
-        default_offset = None
+    default_offset = len(args) - len(defaults) if defaults is not None else None
     packed = itertools.zip_longest(args, annotations)
     for i, (arg, annotation) in enumerate(packed):
         if arg.name in skippable_names:
@@ -1634,10 +1631,7 @@ class BoolOp(NodeNG):
         node.
         """
         values = self.values
-        if self.op == "or":
-            predicate = operator.truth
-        else:
-            predicate = operator.not_
+        predicate = operator.truth if self.op == "or" else operator.not_
 
         try:
             inferred_values = [value.infer(context=context) for value in values]

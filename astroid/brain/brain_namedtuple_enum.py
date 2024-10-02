@@ -640,11 +640,7 @@ def _get_namedtuple_fields(node: nodes.Call) -> str:
             raise UseInferenceDefault
         names.append(elt.elts[0].as_string())
 
-    if names:
-        field_names = f"({','.join(names)},)"
-    else:
-        field_names = ""
-    return field_names
+    return f"({','.join(names)},)" if names else ""
 
 
 def _is_enum_subclass(cls: astroid.ClassDef) -> bool:

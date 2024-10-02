@@ -146,7 +146,6 @@ class CallSite:
         self, funcnode: InferenceResult, name: str, context: InferenceContext
     ):  # noqa: C901
         """Infer a function argument value according to the call context."""
-        # pylint: disable = too-many-branches
 
         if not isinstance(funcnode, (nodes.FunctionDef, nodes.Lambda)):
             raise InferenceError(
@@ -189,10 +188,11 @@ class CallSite:
         vararg = self.positional_arguments[len(funcnode.args.args) :]
 
         # preserving previous behavior, when vararg and kwarg were not included in find_argname results
-        if name in [funcnode.args.vararg, funcnode.args.kwarg]:
-            argindex = None
-        else:
-            argindex = funcnode.args.find_argname(name)[0]
+        argindex = (
+            None
+            if name in [funcnode.args.vararg, funcnode.args.kwarg]
+            else funcnode.args.find_argname(name)[0]
+        )
 
         kwonlyargs = {arg.name for arg in funcnode.args.kwonlyargs}
         kwargs = {

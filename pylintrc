@@ -31,6 +31,7 @@ load-plugins=
     pylint.extensions.set_membership,
     pylint.extensions.redefined_variable_type,
     pylint.extensions.for_any_all,
+    pylint.extensions.consider_ternary_expression,
 
 # Use multiple processes to speed up Pylint.
 jobs=1

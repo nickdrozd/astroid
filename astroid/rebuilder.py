@@ -922,17 +922,19 @@ class TreeRebuilder:
         for key, value in zip(node.keys, node.values):
             rebuilt_key: NodeNG
             rebuilt_value = self.visit(value, newnode)
-            if not key:
+            rebuilt_key = (
+                self.visit(key, newnode)
+                if key
+                else
                 # Extended unpacking
-                rebuilt_key = nodes.DictUnpack(
+                nodes.DictUnpack(
                     lineno=rebuilt_value.lineno,
                     col_offset=rebuilt_value.col_offset,
                     end_lineno=rebuilt_value.end_lineno,
                     end_col_offset=rebuilt_value.end_col_offset,
                     parent=parent,
                 )
-            else:
-                rebuilt_key = self.visit(key, newnode)
+            )
             yield rebuilt_key, rebuilt_value
 
     def visit_dict(self, node: ast.Dict, parent: NodeNG) -> nodes.Dict:
@@ -1092,11 +1094,10 @@ class TreeRebuilder:
             parent=parent,
         )
         decorators = self.visit_decorators(node, newnode)
-        returns: NodeNG | None
-        if node.returns:
-            returns = self.visit(node.returns, newnode)
-        else:
-            returns = None
+
+        returns: NodeNG | None = (
+            self.visit(node.returns, newnode) if node.returns else None
+        )
 
         type_comment_args = type_comment_returns = None
         if type_comment_annotation := self.check_function_type_comment(node, newnode):

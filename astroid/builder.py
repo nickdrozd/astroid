@@ -194,10 +194,8 @@ class AstroidBuilder(raw_building.InspectBuilder):
                 error=exc,
             ) from exc
 
-        if path is not None:
-            node_file = os.path.abspath(path)
-        else:
-            node_file = "<?>"
+        node_file = os.path.abspath(path) if path is not None else "<?>"
+
         if modname.endswith(".__init__"):
             modname = modname[:-9]
             package = True
@@ -358,14 +356,15 @@ def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | Non
       can be found.
     :rtype:  astroid.bases.NodeNG or None
     """
-    if isinstance(node, (nodes.ClassDef, nodes.FunctionDef, nodes.MatchCase)):
-        # This is an inaccuracy in the AST: the nodes that can be
-        # decorated do not carry explicit information on which line
-        # the actual definition (class/def), but .fromline seems to
-        # be close enough.
-        node_line = node.fromlineno
-    else:
-        node_line = node.lineno
+    # This is an inaccuracy in the AST: the nodes that can be
+    # decorated do not carry explicit information on which line
+    # the actual definition (class/def), but .fromline seems to
+    # be close enough.
+    node_line = (
+        node.fromlineno
+        if isinstance(node, (nodes.ClassDef, nodes.FunctionDef, nodes.MatchCase))
+        else node.lineno
+    )
 
     if node_line == line:
         return node

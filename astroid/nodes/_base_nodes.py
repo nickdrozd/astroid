@@ -156,21 +156,15 @@ class ImportNode(FilterStmtsBaseNode, NoChildrenNode, Statement):
         # If the module ImportNode is importing is a module with the same name
         # as the file that contains the ImportNode we don't want to use the cache
         # to make sure we use the import system to get the correct module.
-        if (
-            modname
-            # pylint: disable-next=no-member # pylint doesn't recognize type of mymodule
-            and mymodule.relative_to_absolute_name(modname, level) == mymodule.name
-        ):
-            use_cache = False
-        else:
-            use_cache = True
-
-        # pylint: disable-next=no-member # pylint doesn't recognize type of mymodule
+        # pylint: disable = no-member # pylint doesn't recognize type of mymodule
         return mymodule.import_module(
             modname,
             level=level,
             relative_only=bool(level and level >= 1),
-            use_cache=use_cache,
+            use_cache=not (
+                modname
+                and mymodule.relative_to_absolute_name(modname, level) == mymodule.name
+            ),
         )
 
     def real_name(self, asname: str) -> str:
@@ -458,10 +452,6 @@ class OperatorNode(NodeNG):
 
         If *reverse* is True, then the reflected method will be used instead.
         """
-        if reverse:
-            method_name = REFLECTED_BIN_OP_METHOD[op]
-        else:
-            method_name = BIN_OP_METHOD[op]
         return partial(
             OperatorNode._invoke_binop_inference,
             instance=instance,
@@ -469,7 +459,7 @@ class OperatorNode(NodeNG):
             opnode=opnode,
             other=other,
             context=context,
-            method_name=method_name,
+            method_name=(REFLECTED_BIN_OP_METHOD if reverse else BIN_OP_METHOD)[op],
         )
 
     @staticmethod

@@ -969,12 +969,7 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
         :returns: The names of the arguments.
         :rtype: list(str)
         """
-        if self.args.arguments:  # maybe None with builtin functions
-            names = [elt.name for elt in self.args.arguments]
-        else:
-            names = []
-
-        return names
+        return [elt.name for elt in self.args.arguments]
 
     def infer_call_result(
         self,
@@ -1280,12 +1275,7 @@ class FunctionDef(
         :returns: The names of the arguments.
         :rtype: list(str)
         """
-        if self.args.arguments:  # maybe None with builtin functions
-            names = [elt.name for elt in self.args.arguments]
-        else:
-            names = []
-
-        return names
+        return [elt.name for elt in self.args.arguments]
 
     def getattr(
         self, name: str, context: InferenceContext | None = None
@@ -1800,10 +1790,7 @@ def get_wrapping_class(node):
 
     klass = node.frame()
     while klass is not None and not isinstance(klass, ClassDef):
-        if klass.parent is None:
-            klass = None
-        else:
-            klass = klass.parent.frame()
+        klass = None if (parent := klass.parent) is None else parent.frame()
     return klass
 
 
@@ -2716,10 +2703,11 @@ class ClassDef(
                 # we can't obtain the values, maybe a .deque?
                 continue
 
-            if isinstance(slots, node_classes.Dict):
-                values = [item[0] for item in slots.items]
-            else:
-                values = slots.itered()
+            values = (
+                [item[0] for item in slots.items]
+                if isinstance(slots, node_classes.Dict)
+                else slots.itered()
+            )
             if isinstance(values, util.UninferableBase):
                 continue
             if not values:

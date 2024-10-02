@@ -135,10 +135,11 @@ class NodeNG:
         :returns: The inferred values.
         :rtype: iterable
         """
-        if context is None:
-            context = InferenceContext()
-        else:
-            context = context.extra_context.get(self, context)
+        context = (
+            InferenceContext()
+            if context is None
+            else context.extra_context.get(self, context)
+        )
         if self._explicit_inference is not None:
             # explicit_inference is not bound, give it self explicitly
             try:
@@ -219,11 +220,12 @@ class NodeNG:
             lineno = self.fromlineno
         except AttributeError:
             lineno = 0
-        if rname:
-            string = "<%(cname)s.%(rname)s l.%(lineno)s at 0x%(id)x>"
-        else:
-            string = "<%(cname)s l.%(lineno)s at 0x%(id)x>"
-        return string % {
+
+        return (
+            "<%(cname)s.%(rname)s l.%(lineno)s at 0x%(id)x>"
+            if rname
+            else "<%(cname)s l.%(lineno)s at 0x%(id)x>"
+        ) % {
             "cname": type(self).__name__,
             "rname": rname,
             "lineno": lineno,
@@ -425,16 +427,15 @@ class NodeNG:
 
         Can also return 0 if the line can not be determined.
         """
-        if self.end_lineno is not None:
-            return self.end_lineno
-        if not self._astroid_fields:
-            # can't have children
-            last_child = None
-        else:
-            last_child = self.last_child()
-        if last_child is None:
-            return self.fromlineno
-        return last_child.tolineno
+        return (
+            self.end_lineno
+            if self.end_lineno is not None
+            else (
+                self.fromlineno
+                if not self._astroid_fields or (last_child := self.last_child()) is None
+                else last_child.tolineno
+            )
+        )
 
     def _fixed_source_line(self) -> int:
         """Attempt to find the line that this node appears on.

@@ -806,10 +806,7 @@ def test_kw_only_sentinel() -> None:
     B.__init__  #@
     """
     )
-    if PY310_PLUS:
-        expected = ["self", "y"]
-    else:
-        expected = ["self", "_", "y"]
+    expected = ['self', 'y'] if PY310_PLUS else ['self', '_', 'y']
     init = next(node_one.infer())
     assert [a.name for a in init.args.args] == expected
 

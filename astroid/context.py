@@ -175,10 +175,7 @@ class CallContext:
         callee: InferenceResult | None = None,
     ):
         self.args = args  # Call positional arguments
-        if keywords:
-            arg_value_pairs = [(arg.arg, arg.value) for arg in keywords]
-        else:
-            arg_value_pairs = []
+        arg_value_pairs = [(arg.arg, arg.value) for arg in keywords] if keywords else []
         self.keywords = arg_value_pairs  # Call keyword arguments
         self.callee = callee  # Function being called
 

@@ -216,12 +216,10 @@ class ModuleModel(ObjectModel):
 
     @property
     def attr___package__(self):
-        if not self._instance.package:
-            value = ""
-        else:
-            value = self._instance.name
-
-        return node_classes.Const(value=value, parent=self._instance)
+        return node_classes.Const(
+            value="" if not self._instance.package else self._instance.name,
+            parent=self._instance,
+        )
 
     # These are related to the Python 3 implementation of the
     # import system,
@@ -279,10 +277,7 @@ class FunctionModel(ObjectModel):
             end_col_offset=self._instance.end_col_offset,
         )
 
-        if not self._instance.returns:
-            returns = None
-        else:
-            returns = self._instance.returns
+        returns = None if not self._instance.returns else self._instance.returns
 
         args = self._instance.args
         pair_annotations = itertools.chain(
