@@ -19,6 +19,16 @@ if TYPE_CHECKING:
     from astroid import bases, exceptions, nodes, transforms, util
     from astroid.context import InferenceContext
     from astroid.interpreter._import import spec
+    from astroid.nodes import (
+        Const,
+        Dict,
+        EmptyNode,
+        List,
+        Set,
+        Tuple,
+    )
+
+    ConstFactoryResult = Const | Dict | EmptyNode | List | Set | Tuple
 
 
 InferenceResult = (
@@ -35,15 +45,6 @@ _SuccessfulInferenceResultT_contra = TypeVar(
     "_SuccessfulInferenceResultT_contra",
     bound=SuccessfulInferenceResult,
     contravariant=True,
-)
-
-ConstFactoryResult = (
-    type["nodes.List"]
-    | type["nodes.Set"]
-    | type["nodes.Tuple"]
-    | type["nodes.Dict"]
-    | type["nodes.Const"]
-    | type["nodes.EmptyNode"]
 )
 
 InferBinaryOp = Callable[
