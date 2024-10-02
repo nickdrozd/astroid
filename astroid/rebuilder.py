@@ -71,10 +71,9 @@ class TreeRebuilder:
         self._delayed_assattr: list[nodes.AssignAttr] = []
         self._visit_meths: dict[type[ast.AST], Callable[[ast.AST, NodeNG], NodeNG]] = {}
 
-        if parser_module is None:
-            self._parser_module = get_parser_module()
-        else:
-            self._parser_module = parser_module
+        self._parser_module = (
+            get_parser_module() if parser_module is None else parser_module
+        )
 
     def _get_doc(self, node: T_Doc) -> tuple[T_Doc, ast.Constant | ast.Str | None]:
         """Return the doc ast node."""

@@ -210,11 +210,10 @@ def _filter_stmts(
                 # the exception handler block, node should override previous assignments;
                 # otherwise, node should be ignored, as an exception variable
                 # is local to the handler block.
-                if stmt.parent_of(base_node):
-                    _stmts = []
-                    _stmt_parents = []
-                else:
+                if not stmt.parent_of(base_node):
                     continue
+                _stmts = []
+                _stmt_parents = []
             elif not optional_assign and mystmt and stmt.parent is mystmt.parent:
                 _stmts = []
                 _stmt_parents = []

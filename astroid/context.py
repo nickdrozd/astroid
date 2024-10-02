@@ -55,10 +55,7 @@ class InferenceContext:
         path: set[tuple[nodes.NodeNG, str | None]] | None = None,
         nodes_inferred: list[int] | None = None,
     ) -> None:
-        if nodes_inferred is None:
-            self._nodes_inferred = [0]
-        else:
-            self._nodes_inferred = nodes_inferred
+        self._nodes_inferred = [0] if nodes_inferred is None else nodes_inferred
 
         self.path = path or set()
         """Path of visited nodes and their lookupname.

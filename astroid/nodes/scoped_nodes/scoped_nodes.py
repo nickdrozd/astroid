@@ -1542,12 +1542,11 @@ class FunctionDef(
     ) -> Iterator[InferenceResult]:
         """Infer what the function returns when called."""
         if self.is_generator():
-            if isinstance(self, AsyncFunctionDef):
-                generator_cls: type[bases.Generator] = bases.AsyncGenerator
-            else:
-                generator_cls = bases.Generator
-            result = generator_cls(self, generator_initial_context=context)
-            yield result
+            yield (
+                bases.AsyncGenerator
+                if isinstance(self, AsyncFunctionDef)
+                else bases.Generator
+            )(self, generator_initial_context=context)
             return
         # This is really a gigantic hack to work around metaclass generators
         # that return transient class-generating functions. Pylint's AST structure
@@ -1611,10 +1610,13 @@ class FunctionDef(
 
         if not (first_return := next(returns, None)):
             if self.body:
-                if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=True):
-                    yield util.Uninferable
-                else:
-                    yield node_classes.Const(None)
+                yield (
+                    util.Uninferable
+                    if self.is_abstract(
+                        pass_is_abstract=True, any_raise_is_abstract=True
+                    )
+                    else node_classes.Const(None)
+                )
                 return
 
             raise InferenceError("The function does not have any return statements")
@@ -1622,11 +1624,12 @@ class FunctionDef(
         for returnnode in itertools.chain((first_return,), returns):
             if returnnode.value is None:
                 yield node_classes.Const(None)
-            else:
-                try:
-                    yield from returnnode.value.infer(context)
-                except InferenceError:
-                    yield util.Uninferable
+                continue
+
+            try:
+                yield from returnnode.value.infer(context)
+            except InferenceError:
+                yield util.Uninferable
 
     def bool_value(self, context: InferenceContext | None = None) -> bool:
         """Determine the boolean value of this node.

@@ -329,13 +329,10 @@ class OperatorNode(NodeNG):
         error: type[util.BadOperationMessage],
     ) -> Generator[InferenceResult]:
         for result in infer_callable(context):
-            if isinstance(result, error):
-                # For the sake of .infer(), we don't care about operation
-                # errors, which is the job of a linter. So return something
-                # which shows that we can't infer the result.
-                yield util.Uninferable
-            else:
-                yield result
+            # For the sake of .infer(), we don't care about operation
+            # errors, which is the job of a linter. So return something
+            # which shows that we can't infer the result.
+            yield util.Uninferable if isinstance(result, error) else result
 
     @staticmethod
     def _is_not_implemented(const) -> bool:

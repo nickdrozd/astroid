@@ -109,8 +109,9 @@ def unpack_infer(stmt, context: InferenceContext | None = None):
     for inferred in stmt.infer(context):
         if isinstance(inferred, util.UninferableBase):
             yield inferred
-        else:
-            yield from unpack_infer(inferred, context)
+            continue
+
+        yield from unpack_infer(inferred, context)
 
     return {"node": stmt, "context": context}
 
@@ -1763,10 +1764,7 @@ class Call(NodeNG):
         if context is None:
             return context_lookup
         for arg in self.args:
-            if isinstance(arg, Starred):
-                context_lookup[arg.value] = context
-            else:
-                context_lookup[arg] = context
+            context_lookup[arg.value if isinstance(arg, Starred) else arg] = context
         keywords = self.keywords if self.keywords is not None else []
         for keyword in keywords:
             context_lookup[keyword.value] = context
@@ -1914,10 +1912,7 @@ class Compare(NodeNG):
             if retval is not True:
                 break  # short-circuit
             lhs = rhs  # continue
-        if retval is util.Uninferable:
-            yield retval  # type: ignore[misc]
-        else:
-            yield Const(retval)
+        yield retval if retval is util.Uninferable else Const(retval)
 
 
 class Comprehension(NodeNG):
@@ -2557,13 +2552,14 @@ class EmptyNode(_base_nodes.NoChildrenNode):
     ) -> Generator[InferenceResult]:
         if not self.has_underlying_object():
             yield util.Uninferable
-        else:
-            try:
-                yield from AstroidManager().infer_ast_from_something(
-                    self.object, context=context
-                )
-            except AstroidError:
-                yield util.Uninferable
+            return
+
+        try:
+            yield from AstroidManager().infer_ast_from_something(
+                self.object, context=context
+            )
+        except AstroidError:
+            yield util.Uninferable
 
 
 class ExceptHandler(
@@ -3100,6 +3096,7 @@ class IfExp(NodeNG):
         context = context or InferenceContext()
         lhs_context = copy_context(context)
         rhs_context = copy_context(context)
+
         try:
             test = next(self.test.infer(context=context.clone()))
         except (InferenceError, StopIteration):
@@ -3112,6 +3109,7 @@ class IfExp(NodeNG):
                     yield from self.orelse.infer(context=rhs_context)
             else:
                 both_branches = True
+
         if both_branches:
             yield from self.body.infer(context=lhs_context)
             yield from self.orelse.infer(context=rhs_context)
@@ -3181,10 +3179,7 @@ class Import(_base_nodes.ImportNode):
             raise InferenceError(node=self, context=context)
 
         try:
-            if asname:
-                yield self.do_import_module(self.real_name(name))
-            else:
-                yield self.do_import_module(name)
+            yield self.do_import_module(self.real_name(name) if asname else name)
         except AstroidBuildingError as exc:
             raise InferenceError(node=self, context=context) from exc
 
@@ -4304,11 +4299,13 @@ class UnaryOp(_base_nodes.OperatorNode):
                     # `not node`. Determine node's boolean
                     # value and negate its result, unless it is
                     # Uninferable, which will be returned as is.
-                    bool_value = operand.bool_value()
-                    if not isinstance(bool_value, util.UninferableBase):
-                        yield const_factory(not bool_value)
-                    else:
-                        yield util.Uninferable
+                    yield (
+                        util.Uninferable
+                        if isinstance(
+                            bool_value := operand.bool_value(), util.UninferableBase
+                        )
+                        else const_factory(not bool_value)
+                    )
                 else:
                     if not isinstance(operand, (Instance, ClassDef)):
                         # The operation was used on something which
@@ -4336,11 +4333,11 @@ class UnaryOp(_base_nodes.OperatorNode):
                         context.callcontext = CallContext(args=[], callee=inferred)
 
                         call_results = inferred.infer_call_result(self, context=context)
-                        if (result := next(call_results, None)) is None:
-                            # Failed to infer, return the same type.
-                            yield operand
-                        else:
-                            yield result
+                        yield (
+                            operand
+                            if (result := next(call_results, None)) is None
+                            else result
+                        )
                     except AttributeInferenceError as inner_exc:
                         # The unary operation special method was not found.
                         yield util.BadUnaryOperationMessage(operand, self.op, inner_exc)
@@ -4780,12 +4777,12 @@ class JoinedStr(NodeNG):
                         result += str(node.value)
                         continue
                     result += MISSING_VALUE
-                if MISSING_VALUE in result:
-                    if not uninferable_already_generated:
-                        uninferable_already_generated = True
-                        yield util.Uninferable
-                else:
+                if MISSING_VALUE not in result:
                     yield Const(result)
+                    continue
+                if not uninferable_already_generated:
+                    uninferable_already_generated = True
+                    yield util.Uninferable
 
 
 class NamedExpr(_base_nodes.AssignTypeNode):

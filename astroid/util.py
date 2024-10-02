@@ -86,18 +86,18 @@ class BadUnaryOperationMessage(BadOperationMessage):
         return objtype
 
     def __str__(self) -> str:
-        if hasattr(self.operand, "name"):
-            operand_type = self.operand.name
-        else:
-            object_type = self._object_type(self.operand)
-            if hasattr(object_type, "name"):
-                operand_type = object_type.name
-            else:
-                # Just fallback to as_string
-                operand_type = object_type.as_string()
-
-        msg = "bad operand type for unary {}: {}"
-        return msg.format(self.op, operand_type)
+        return "bad operand type for unary {}: {}".format(
+            self.op,
+            (
+                self.operand.name
+                if hasattr(self.operand, "name")
+                else (
+                    object_type.name
+                    if hasattr(object_type := self._object_type(self.operand), "name")
+                    else object_type.as_string()
+                )
+            ),
+        )
 
 
 class BadBinaryOperationMessage(BadOperationMessage):

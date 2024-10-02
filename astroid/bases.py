@@ -120,17 +120,18 @@ class Proxy:
             nodes.ClassDef | nodes.FunctionDef | nodes.Lambda | UnboundMethod | None
         ) = None,
     ) -> None:
-        if proxied is None:
-            # This is a hack to allow calling this __init__ during bootstrapping of
-            # builtin classes and their docstrings.
-            # For Const, Generator, and UnionType nodes the _proxied attribute
-            # is set during bootstrapping
-            # as we first need to build the ClassDef that they can proxy.
-            # Thus, if proxied is None self should be a Const or Generator
-            # as that is the only way _proxied will be correctly set as a ClassDef.
-            assert isinstance(self, (nodes.Const, Generator, UnionType))
-        else:
+        if proxied is not None:
             self._proxied = proxied
+            return
+
+        # This is a hack to allow calling this __init__ during bootstrapping of
+        # builtin classes and their docstrings.
+        # For Const, Generator, and UnionType nodes the _proxied attribute
+        # is set during bootstrapping
+        # as we first need to build the ClassDef that they can proxy.
+        # Thus, if proxied is None self should be a Const or Generator
+        # as that is the only way _proxied will be correctly set as a ClassDef.
+        assert isinstance(self, nodes.Const | Generator | UnionType)
 
     def __getattr__(self, name: str) -> Any:
         if name == "_proxied":
@@ -156,10 +157,7 @@ def _infer_stmts(
     if context is not None:
         name = context.lookupname
         context = context.clone()
-        if name is not None:
-            constraints = context.constraints.get(name, {})
-        else:
-            constraints = {}
+        constraints = {} if name is None else context.constraints.get(name, {})
     else:
         name = None
         constraints = {}
@@ -297,15 +295,19 @@ class BaseInstance(Proxy):
         """Wrap bound methods of attrs in a InstanceMethod proxies."""
         for attr in attrs:
             if isinstance(attr, UnboundMethod):
-                if _is_property(attr):
-                    yield from attr.infer_call_result(self, context)
-                else:
+                if not _is_property(attr):
                     yield BoundMethod(attr, self)
+                    continue
+
+                yield from attr.infer_call_result(self, context)
+
             elif isinstance(attr, nodes.Lambda):
                 if attr.args.arguments and attr.args.arguments[0].name == "self":
                     yield BoundMethod(attr, self)
                     continue
+
                 yield attr
+
             else:
                 yield attr
 
@@ -500,13 +502,18 @@ class UnboundMethod(Proxy):
             return
         # Attempt to create a constant
         if len(caller.args) > 1:
-            value = None
-            if isinstance(caller.args[1], nodes.Const):
-                value = caller.args[1].value
-            else:
-                inferred_arg = next(caller.args[1].infer(), None)
-                if isinstance(inferred_arg, nodes.Const):
-                    value = inferred_arg.value
+            value = (
+                arg.value
+                if isinstance(arg := caller.args[1], nodes.Const)
+                else (
+                    inferred_arg.value
+                    if isinstance(
+                        inferred_arg := next(caller.args[1].infer(), None), nodes.Const
+                    )
+                    else None
+                )
+            )
+
             if value is not None:
                 const = nodes.const_factory(value)
                 assert not isinstance(const, nodes.EmptyNode)

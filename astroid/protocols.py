@@ -53,12 +53,9 @@ def _infer_unary_op(obj: Any, op: str) -> ConstFactoryResult:
 
     Can raise TypeError if operation is unsupported.
     """
-    if obj is NotImplemented:
-        value = obj
-    else:
-        func = _UNARY_OPERATORS[op]
-        value = func(obj)
-    return nodes.const_factory(value)
+    return nodes.const_factory(
+        obj if obj is NotImplemented else _UNARY_OPERATORS[op](obj)
+    )
 
 
 def tuple_infer_unary_op(self, op):
@@ -167,12 +164,14 @@ def _filter_uninferable_nodes(
     for elt in elts:
         if isinstance(elt, util.UninferableBase):
             yield nodes.Unknown()
-        else:
-            for inferred in elt.infer(context):
-                if not isinstance(inferred, util.UninferableBase):
-                    yield inferred
-                else:
-                    yield nodes.Unknown()
+            continue
+
+        for inferred in elt.infer(context):
+            yield (
+                nodes.Unknown()
+                if isinstance(inferred, util.UninferableBase)
+                else inferred
+            )
 
 
 @decorators.yes_if_nothing_inferred
@@ -430,12 +429,11 @@ def arguments_assigned_stmts(
         # https://github.com/pylint-dev/astroid/pull/1644#discussion_r901545816
         node_name = None  # pragma: no cover
 
-    if context and context.callcontext:
-        callee = context.callcontext.callee
-        while hasattr(callee, "_proxied"):
-            callee = callee._proxied
-    else:
+    if not context or not context.callcontext:
         return _arguments_infer_argname(self, node_name, context)
+    callee = context.callcontext.callee
+    while hasattr(callee, "_proxied"):
+        callee = callee._proxied
     if node and getattr(callee, "name", None) == node.frame().name:
         # reset call context/name
         callcontext = context.callcontext
@@ -475,10 +473,7 @@ def assign_annassigned_stmts(
     assign_path: list[int] | None = None,
 ) -> Any:
     for inferred in assign_assigned_stmts(self, node, context, assign_path):
-        if inferred is None:
-            yield util.Uninferable
-        else:
-            yield inferred
+        yield util.Uninferable if inferred is None else inferred
 
 
 def _resolve_assignment_parts(parts, assign_path, context):
@@ -669,15 +664,15 @@ def named_expr_assigned_stmts(
     assign_path: list[int] | None = None,
 ) -> Any:
     """Infer names and other nodes from an assignment expression."""
-    if self.target == node:
-        yield from self.value.infer(context=context)
-    else:
+    if self.target != node:
         raise InferenceError(
             "Cannot infer NamedExpr node {node!r}",
             node=self,
             assign_path=assign_path,
             context=context,
         )
+
+    yield from self.value.infer(context=context)
 
 
 @decorators.yes_if_nothing_inferred

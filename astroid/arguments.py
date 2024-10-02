@@ -98,30 +98,32 @@ class CallSite:
         context = context or InferenceContext()
         context.extra_context = self.argument_context_map
         for name, value in keywords:
-            if name is None:
-                # Then it's an unpacking operation (**)
-                inferred = safe_infer(value, context=context)
-                if not isinstance(inferred, nodes.Dict):
-                    # Not something we can work with.
+            if name is not None:
+                values[name] = value
+                continue
+
+            # Then it's an unpacking operation (**)
+            inferred = safe_infer(value, context=context)
+            if not isinstance(inferred, nodes.Dict):
+                # Not something we can work with.
+                values[name] = Uninferable
+                continue
+
+            for dict_key, dict_value in inferred.items:
+                dict_key = safe_infer(dict_key, context=context)
+                if not isinstance(dict_key, nodes.Const):
                     values[name] = Uninferable
                     continue
+                if not isinstance(dict_key.value, str):
+                    values[name] = Uninferable
+                    continue
+                if dict_key.value in values:
+                    # The name is already in the dictionary
+                    values[dict_key.value] = Uninferable
+                    self.duplicated_keywords.add(dict_key.value)
+                    continue
+                values[dict_key.value] = dict_value
 
-                for dict_key, dict_value in inferred.items:
-                    dict_key = safe_infer(dict_key, context=context)
-                    if not isinstance(dict_key, nodes.Const):
-                        values[name] = Uninferable
-                        continue
-                    if not isinstance(dict_key.value, str):
-                        values[name] = Uninferable
-                        continue
-                    if dict_key.value in values:
-                        # The name is already in the dictionary
-                        values[dict_key.value] = Uninferable
-                        self.duplicated_keywords.add(dict_key.value)
-                        continue
-                    values[dict_key.value] = dict_value
-            else:
-                values[name] = value
         return values
 
     def _unpack_args(self, args, context: InferenceContext | None = None):
@@ -129,17 +131,17 @@ class CallSite:
         context = context or InferenceContext()
         context.extra_context = self.argument_context_map
         for arg in args:
-            if isinstance(arg, nodes.Starred):
-                inferred = safe_infer(arg.value, context=context)
-                if isinstance(inferred, UninferableBase):
-                    values.append(Uninferable)
-                    continue
-                if not hasattr(inferred, "elts"):
-                    values.append(Uninferable)
-                    continue
-                values.extend(inferred.elts)
-            else:
+            if not isinstance(arg, nodes.Starred):
                 values.append(arg)
+                continue
+            inferred = safe_infer(arg.value, context=context)
+            if isinstance(inferred, UninferableBase):
+                values.append(Uninferable)
+                continue
+            if not hasattr(inferred, "elts"):
+                values.append(Uninferable)
+                continue
+            values.extend(inferred.elts)
         return values
 
     def infer_argument(
