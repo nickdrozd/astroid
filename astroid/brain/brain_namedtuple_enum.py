@@ -100,8 +100,7 @@ def infer_func_form(
             # Handle attributes of NamedTuples
             if not enum:
                 attributes = []
-                fields = _get_namedtuple_fields(node)
-                if fields:
+                if fields := _get_namedtuple_fields(node):
                     fields_node = extract_node(fields)
                     attributes = [
                         _infer_first(const, context).value for const in fields_node.elts

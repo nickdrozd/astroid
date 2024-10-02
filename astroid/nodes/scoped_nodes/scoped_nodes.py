@@ -82,8 +82,7 @@ def _c3_merge(sequences, cls, context):
     """
     result = []
     while True:
-        sequences = [s for s in sequences if s]  # purge empty sequences
-        if not sequences:
+        if not (sequences := [s for s in sequences if s]):
             return result
         for s1 in sequences:  # find merge candidates among seq heads
             candidate = s1[0]
@@ -156,8 +155,8 @@ def clean_duplicates_mro(
     for sequence in sequences:
         seen = set()
         for node in sequence:
-            lineno_and_qname = (node.lineno, node.qname())
-            if lineno_and_qname in seen:
+
+            if (lineno_and_qname := (node.lineno, node.qname())) in seen:
                 raise DuplicateBasesError(
                     message="Duplicates found in MROs {mros} for {cls!r}.",
                     mros=sequences,
@@ -367,8 +366,7 @@ class Module(LocalsDictNodeNG):
                 raise AttributeInferenceError(
                     target=self, attribute=name, context=context
                 ) from exc
-        result = [n for n in result if not isinstance(n, node_classes.DelName)]
-        if result:
+        if result := [n for n in result if not isinstance(n, node_classes.DelName)]:
             return result
         raise AttributeInferenceError(target=self, attribute=name, context=context)
 
@@ -1353,15 +1351,15 @@ class FunctionDef(
                     current = next(node.func.infer())
                 except (InferenceError, StopIteration):
                     continue
-                _type = _infer_decorator_callchain(current)
-                if _type is not None:
+
+                if (_type := _infer_decorator_callchain(current)) is not None:
                     return _type
 
             try:
                 for inferred in node.infer():
                     # Check to see if this returns a static or a class method.
-                    _type = _infer_decorator_callchain(inferred)
-                    if _type is not None:
+
+                    if (_type := _infer_decorator_callchain(inferred)) is not None:
                         return _type
 
                     if not isinstance(inferred, ClassDef):
@@ -1621,8 +1619,7 @@ class FunctionDef(
                 return
         returns = self._get_return_nodes_skip_functions()
 
-        first_return = next(returns, None)
-        if not first_return:
+        if not (first_return := next(returns, None)):
             if self.body:
                 if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=True):
                     yield util.Uninferable
@@ -1732,8 +1729,8 @@ def _is_metaclass(
     for base in klass.bases:
         try:
             for baseobj in base.infer(context=context):
-                baseobj_name = baseobj.qname()
-                if baseobj_name in seen:
+
+                if (baseobj_name := baseobj.qname()) in seen:
                     continue
 
                 seen.add(baseobj_name)
@@ -1771,15 +1768,15 @@ def _class_type(
     else:
         if ancestors is None:
             ancestors = set()
-        klass_name = klass.qname()
-        if klass_name in ancestors:
+
+        if (klass_name := klass.qname()) in ancestors:
             # XXX we are in loop ancestors, and have found no type
             klass._type = "class"
             return "class"
         ancestors.add(klass_name)
         for base in klass.ancestors(recurs=False):
-            name = _class_type(base, ancestors)
-            if name != "class":
+
+            if (name := _class_type(base, ancestors)) != "class":
                 if name == "metaclass" and klass._type != "metaclass":
                     # don't propagate it if the current class
                     # can't be a metaclass
@@ -2049,8 +2046,8 @@ class ClassDef(
         if isinstance(class_bases, (node_classes.Tuple, node_classes.List)):
             bases = []
             for base in class_bases.itered():
-                inferred = next(base.infer(context=context), None)
-                if inferred:
+
+                if inferred := next(base.infer(context=context), None):
                     bases.append(
                         node_classes.EvaluatedObject(original=base, value=inferred)
                     )
@@ -2087,8 +2084,7 @@ class ClassDef(
 
         dunder_call = None
         try:
-            metaclass = self.metaclass(context=context)
-            if metaclass is not None:
+            if (metaclass := self.metaclass(context=context)) is not None:
                 # Only get __call__ if it's defined locally for the metaclass.
                 # Otherwise we will find ObjectModel.__call__ which will
                 # return an instance of the metaclass. Instantiating the class is
@@ -2275,12 +2271,9 @@ class ClassDef(
         result = []
         if name in self.locals:
             result = self.locals[name]
-        else:
-            class_node = next(self.local_attr_ancestors(name, context), None)
-            if class_node:
-                result = class_node.locals[name]
-        result = [n for n in result if not isinstance(n, node_classes.DelAttr)]
-        if result:
+        elif class_node := next(self.local_attr_ancestors(name, context), None):
+            result = class_node.locals[name]
+        if result := [n for n in result if not isinstance(n, node_classes.DelAttr)]:
             return result
         raise AttributeInferenceError(target=self, attribute=name, context=context)
 
@@ -2301,8 +2294,7 @@ class ClassDef(
         # get all values from parents
         for class_node in self.instance_attr_ancestors(name, context):
             values += class_node.instance_attrs[name]
-        values = [n for n in values if not isinstance(n, node_classes.DelAttr)]
-        if values:
+        if values := [n for n in values if not isinstance(n, node_classes.DelAttr)]:
             return values
         raise AttributeInferenceError(target=self, attribute=name, context=context)
 
@@ -2675,12 +2667,11 @@ class ClassDef(
             seen = set()
         seen.add(self)
 
-        klass = self.declared_metaclass(context=context)
-        if klass is None:
+        if (klass := self.declared_metaclass(context=context)) is None:
             for parent in self.ancestors(context=context):
                 if parent not in seen:
-                    klass = parent._find_metaclass(seen)
-                    if klass is not None:
+
+                    if (klass := parent._find_metaclass(seen)) is not None:
                         break
         return klass
 

@@ -83,8 +83,8 @@ def _functools_partial_inference(
     node: nodes.Call, context: InferenceContext | None = None
 ) -> Iterator[objects.PartialFunction]:
     call = arguments.CallSite.from_call(node, context=context)
-    number_of_positional = len(call.positional_arguments)
-    if number_of_positional < 1:
+
+    if (number_of_positional := len(call.positional_arguments)) < 1:
         raise UseInferenceDefault("functools.partial takes at least one argument")
     if number_of_positional == 1 and not call.keyword_arguments:
         raise UseInferenceDefault(

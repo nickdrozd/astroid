@@ -211,8 +211,7 @@ def tl_infer_binary_op(
         yield _multiply_seq_by_int(self, opnode, other.value, context)
     elif isinstance(other, bases.Instance) and operator == "*":
         # Verify if the instance supports __index__.
-        as_index = helpers.class_instance_as_index(other)
-        if not as_index:
+        if not (as_index := helpers.class_instance_as_index(other)):
             yield util.Uninferable
         elif not isinstance(as_index.value, int):  # pragma: no cover
             # already checked by class_instance_as_index() but faster than casting

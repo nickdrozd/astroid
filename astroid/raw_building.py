@@ -55,8 +55,8 @@ def _attach_local_node(parent, node, name: str) -> None:
 def _add_dunder_class(func, parent: nodes.NodeNG, member) -> None:
     """Add a __class__ member to the given func node, if we can determine it."""
     python_cls = member.__class__
-    cls_name = getattr(python_cls, "__name__", None)
-    if not cls_name:
+
+    if not (cls_name := getattr(python_cls, "__name__", None)):
         return
     cls_bases = [ancestor.__name__ for ancestor in python_cls.__bases__]
     doc = python_cls.__doc__ if isinstance(python_cls.__doc__, str) else None
@@ -258,9 +258,8 @@ def register_arguments(func: nodes.FunctionDef, args: list | None = None) -> Non
             func.set_local(func.args.vararg, func.args)
         if func.args.kwarg:
             func.set_local(func.args.kwarg, func.args)
-        args = func.args.args
         # If the function has no args, there is nothing left to do.
-        if args is None:
+        if (args := func.args.args) is None:
             return
     for arg in args:
         if isinstance(arg, nodes.AssignName):
@@ -549,9 +548,7 @@ class InspectBuilder:
         if modname == "_io" and not self._module.__name__ == "builtins":
             return False
 
-        real_name = {"gtk": "gtk_gtk"}.get(modname, modname)
-
-        if real_name != self._module.__name__:
+        if ({"gtk": "gtk_gtk"}.get(modname, modname)) != self._module.__name__:
             # check if it sounds valid and then add an import node, else use a
             # dummy node
             try:
@@ -560,16 +557,16 @@ class InspectBuilder:
                     redirect_stdout(io.StringIO()) as stdout,
                 ):
                     getattr(sys.modules[modname], name)
-                    stderr_value = stderr.getvalue()
-                    if stderr_value:
+
+                    if stderr_value := stderr.getvalue():
                         logger.error(
                             "Captured stderr while getting %s from %s:\n%s",
                             name,
                             sys.modules[modname],
                             stderr_value,
                         )
-                    stdout_value = stdout.getvalue()
-                    if stdout_value:
+
+                    if stdout_value := stdout.getvalue():
                         logger.info(
                             "Captured stdout while getting %s from %s:\n%s",
                             name,

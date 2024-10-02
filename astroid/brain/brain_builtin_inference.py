@@ -220,8 +220,7 @@ def register_builtin_transform(
     def _transform_wrapper(
         node: nodes.Call, context: InferenceContext | None = None, **kwargs: Any
     ) -> Iterator:
-        result = transform(node, context=context)
-        if result:
+        if result := transform(node, context=context):
             if not result.parent:
                 # Let the transformation function determine
                 # the parent for its result. Otherwise,
@@ -249,8 +248,7 @@ def _container_generic_inference(
     node_type: type[nodes.BaseContainer],
     transform: Callable[[SuccessfulInferenceResult], nodes.BaseContainer | None],
 ) -> nodes.BaseContainer:
-    args = node.args
-    if not args:
+    if not (args := node.args):
         return node_type(
             lineno=node.lineno,
             col_offset=node.col_offset,
@@ -262,8 +260,8 @@ def _container_generic_inference(
         raise UseInferenceDefault()
 
     (arg,) = args
-    transformed = transform(arg)
-    if not transformed:
+
+    if not (transformed := transform(arg)):
         try:
             inferred = next(arg.infer(context=context))
         except (InferenceError, StopIteration) as exc:
@@ -297,8 +295,8 @@ def _container_generic_transform(
             for element in arg.elts:
                 if not element:
                     continue
-                inferred = util.safe_infer(element, context=context)
-                if inferred:
+
+                if inferred := util.safe_infer(element, context=context):
                     evaluated_object = nodes.EvaluatedObject(
                         original=element, value=inferred
                     )
@@ -542,8 +540,7 @@ def _infer_getattr_args(node, context):
         # which is unknown.
         return util.Uninferable, util.Uninferable
 
-    is_string = isinstance(attr, nodes.Const) and isinstance(attr.value, str)
-    if not is_string:
+    if not (isinstance(attr, nodes.Const) and isinstance(attr.value, str)):
         raise UseInferenceDefault
 
     return obj, attr.value

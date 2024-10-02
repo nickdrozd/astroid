@@ -238,8 +238,7 @@ class AstroidManager:
         try:
             found_spec = self.file_from_module_name(modname, context_file)
             if found_spec.type == spec.ModuleType.PY_ZIPMODULE:
-                module = self.zip_import_data(found_spec.location)
-                if module is not None:
+                if (module := self.zip_import_data(found_spec.location)) is not None:
                     return module
 
             elif found_spec.type in (
@@ -349,8 +348,7 @@ class AstroidManager:
         self, module: types.ModuleType, modname: str | None = None
     ) -> nodes.Module:
         """Given an imported module, return the astroid object."""
-        modname = modname or module.__name__
-        if modname in self.astroid_cache:
+        if (modname := modname or module.__name__) in self.astroid_cache:
             return self.astroid_cache[modname]
         try:
             # some builtin modules don't have __file__ attribute

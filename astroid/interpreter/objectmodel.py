@@ -963,8 +963,7 @@ class PropertyModel(ObjectModel):
                         return target
             return None
 
-        func_setter = find_setter(func)
-        if not func_setter:
+        if not (func_setter := find_setter(func)):
             raise InferenceError(
                 f"Unable to find the setter of property {func.function.name}"
             )

@@ -31,8 +31,8 @@ def _lookup_in_mro(node, name) -> list:
     nodes = itertools.chain.from_iterable(
         ancestor.locals.get(name, []) for ancestor in node.ancestors(recurs=True)
     )
-    values = list(itertools.chain(attrs, nodes))
-    if not values:
+
+    if not (values := list(itertools.chain(attrs, nodes))):
         raise AttributeInferenceError(attribute=name, target=node)
 
     return values
@@ -62,16 +62,14 @@ def lookup(
 def _class_lookup(
     node: nodes.ClassDef, name: str, context: InferenceContext | None = None
 ) -> list:
-    metaclass = node.metaclass(context=context)
-    if metaclass is None:
+    if (metaclass := node.metaclass(context=context)) is None:
         raise AttributeInferenceError(attribute=name, target=node)
 
     return _lookup_in_mro(metaclass, name)
 
 
 def _builtin_lookup(node, name) -> list:
-    values = node.locals.get(name, [])
-    if not values:
+    if not (values := node.locals.get(name, [])):
         raise AttributeInferenceError(attribute=name, target=node)
 
     return values

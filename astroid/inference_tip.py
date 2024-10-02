@@ -46,8 +46,8 @@ def _inference_tip_cached(func: InferFn[_NodesT]) -> InferFn[_NodesT]:
         context: InferenceContext | None = None,
         **kwargs: Any,
     ) -> Generator[InferenceResult]:
-        partial_cache_key = (func, node)
-        if partial_cache_key in _CURRENTLY_INFERRING:
+
+        if (partial_cache_key := (func, node)) in _CURRENTLY_INFERRING:
             # If through recursion we end up trying to infer the same
             # func + node we raise here.
             _CURRENTLY_INFERRING.remove(partial_cache_key)

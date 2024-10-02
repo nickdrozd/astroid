@@ -497,8 +497,7 @@ class AsStringVisitor:
         """return an astroid.Slice node as string"""
         lower = node.lower.accept(self) if node.lower else ""
         upper = node.upper.accept(self) if node.upper else ""
-        step = node.step.accept(self) if node.step else ""
-        if step:
+        if step := node.step.accept(self) if node.step else "":
             return f"{lower}:{upper}:{step}"
         return f"{lower}:{upper}"
 

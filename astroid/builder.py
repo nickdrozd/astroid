@@ -89,13 +89,11 @@ class AstroidBuilder(raw_building.InspectBuilder):
         """Build an astroid from a living module instance."""
         node = None
         path = getattr(module, "__file__", None)
-        loader = getattr(module, "__loader__", None)
         # Prefer the loader to get the source rather than assuming we have a
         # filesystem to read the source file from ourselves.
-        if loader:
+        if loader := getattr(module, "__loader__", None):
             modname = modname or module.__name__
-            source = loader.get_source(modname)
-            if source:
+            if source := loader.get_source(modname):
                 node = self.string_build(source, modname, path=path)
         if node is None and path is not None:
             path_, ext = os.path.splitext(modutils._path_from_filename(path))
@@ -373,8 +371,7 @@ def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | Non
         return node
 
     for child in node.get_children():
-        result = _find_statement_by_line(child, line)
-        if result:
+        if result := _find_statement_by_line(child, line):
             return result
 
     return None

@@ -61,8 +61,7 @@ def infer_random_sample(node, context: InferenceContext | None = None):
     if not isinstance(inferred_length.value, int):
         raise UseInferenceDefault
 
-    inferred_sequence = safe_infer(node.args[0], context=context)
-    if not inferred_sequence:
+    if not (inferred_sequence := safe_infer(node.args[0], context=context)):
         raise UseInferenceDefault
 
     if not isinstance(inferred_sequence, ACCEPTED_ITERABLES_FOR_SAMPLE):

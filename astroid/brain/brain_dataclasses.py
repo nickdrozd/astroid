@@ -238,8 +238,7 @@ def _get_previous_field_default(node: nodes.ClassDef, name: str) -> nodes.NodeNG
                     and isinstance(assign.parent.value, nodes.Call)
                     and _looks_like_dataclass_field_call(assign.parent.value)
                 ):
-                    default = _get_field_default(assign.parent.value)
-                    if default:
+                    if default := _get_field_default(assign.parent.value):
                         return default[1]
     return None
 
@@ -303,8 +302,8 @@ def _generate_dataclass_init(
 
         if value:
             if is_field:
-                result = _get_field_default(value)  # type: ignore[arg-type]
-                if result:
+
+                if result := _get_field_default(value):
                     default_type, default_node = result
                     if default_type == "default":
                         default_str = default_node.as_string()
@@ -327,13 +326,11 @@ def _generate_dataclass_init(
                 )
             except (InferenceError, StopIteration):
                 pass
-        else:
+        elif previous_default := _get_previous_field_default(node, name):
             # Even with `init=False` the default value still can be propogated to
             # later assignments. Creating weird signatures like:
             # (self, a: str = 1) -> None
-            previous_default = _get_previous_field_default(node, name)
-            if previous_default:
-                default_str = previous_default.as_string()
+            default_str = previous_default.as_string()
 
         # Construct the param string to add to the init if necessary
         param_str = name
@@ -345,8 +342,7 @@ def _generate_dataclass_init(
         # If the field is a kw_only field, we need to add it to the kw_only_params
         # This overwrites whether or not the class is kw_only decorated
         if is_field:
-            kw_only = [k for k in value.keywords if k.arg == "kw_only"]  # type: ignore[union-attr]
-            if kw_only:
+            if kw_only := [k for k in value.keywords if k.arg == "kw_only"]:  # type: ignore[union-attr]
                 if kw_only[0].value.bool_value():
                     kw_only_params.append(param_str)
                 else:
@@ -422,8 +418,8 @@ def infer_dataclass_field_call(
     """Inference tip for dataclass field calls."""
     if not isinstance(node.parent, (nodes.AnnAssign, nodes.Assign)):
         raise UseInferenceDefault
-    result = _get_field_default(node)
-    if not result:
+
+    if not (result := _get_field_default(node)):
         yield Uninferable
     else:
         default_type, default = result
@@ -469,8 +465,7 @@ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
     """Return True if node was dynamically generated as the child of an AnnAssign
     statement.
     """
-    parent = node.parent
-    if not parent:
+    if not (parent := node.parent):
         return False
 
     scope = parent.scope()

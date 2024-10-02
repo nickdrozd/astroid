@@ -238,8 +238,7 @@ class NodeNG:
     def get_children(self) -> Iterator[NodeNG]:
         """Get the child nodes below this node."""
         for field in self._astroid_fields:
-            attr = getattr(self, field)
-            if attr is None:
+            if (attr := getattr(self, field)) is None:
                 continue
             if isinstance(attr, (list, tuple)):
                 yield from attr
@@ -250,8 +249,7 @@ class NodeNG:
     def last_child(self) -> NodeNG | None:
         """An optimized version of list(get_children())[-1]."""
         for field in self._astroid_fields[::-1]:
-            attr = getattr(self, field)
-            if not attr:  # None or empty list / tuple
+            if not (attr := getattr(self, field)):
                 continue
             if isinstance(attr, (list, tuple)):
                 return attr[-1]
@@ -351,8 +349,7 @@ class NodeNG:
             the given child.
         """
         for field in self._astroid_fields:
-            node_or_sequence = getattr(self, field)
-            if node_or_sequence is child:
+            if (node_or_sequence := getattr(self, field)) is child:
                 return [node_or_sequence]
             # /!\ compiler.ast Nodes have an __iter__ walking over child nodes
             if (
@@ -684,8 +681,8 @@ class NodeNG:
             elif len(node) == 1:
                 broken = _repr_tree(node[0], result, done, cur_indent, depth)
             elif len(node) == 2:
-                broken = _repr_tree(node[0], result, done, cur_indent, depth)
-                if not broken:
+
+                if not (broken := _repr_tree(node[0], result, done, cur_indent, depth)):
                     result.append(", ")
                 else:
                     result.append(",\n")

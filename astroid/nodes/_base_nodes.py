@@ -77,8 +77,7 @@ class Statement(NodeNG):
         :rtype: NodeNG or None
         """
         stmts = self.parent.child_sequence(self)
-        index = stmts.index(self)
-        if index >= 1:
+        if (index := stmts.index(self)) >= 1:
             return stmts[index - 1]
         return None
 

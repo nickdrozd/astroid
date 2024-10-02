@@ -68,10 +68,9 @@ class TransformVisitor:
 
         for transform_func, predicate in self.transforms[cls]:
             if predicate is None or predicate(node):
-                ret = transform_func(node)
                 # if the transformation function returns something, it's
                 # expected to be a replacement for the node
-                if ret is not None:
+                if (ret := transform_func(node)) is not None:
                     _invalidate_cache()
                     node = ret
                 if ret.__class__ != cls:
@@ -85,8 +84,7 @@ class TransformVisitor:
             if TYPE_CHECKING:
                 value = cast(_Vistables, value)
 
-            visited = self._visit_generic(value)
-            if visited != value:
+            if (visited := self._visit_generic(value)) != value:
                 setattr(node, name, visited)
         return self._transform(node)
 

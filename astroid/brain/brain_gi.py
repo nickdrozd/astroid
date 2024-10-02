@@ -145,8 +145,7 @@ def _gi_build_stub(parent):  # noqa: C901
             base = "Exception"
         ret += f"class {name}({base}):\n"
 
-        classret = _gi_build_stub(obj)
-        if not classret:
+        if not (classret := _gi_build_stub(obj)):
             classret = "pass\n"
 
         for line in classret.splitlines():

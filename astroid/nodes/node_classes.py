@@ -99,8 +99,7 @@ def unpack_infer(stmt, context: InferenceContext | None = None):
             yield from unpack_infer(elt, context)
         return {"node": stmt, "context": context}
     # if inferred is a final node, return it and stop
-    inferred = next(stmt.infer(context), util.Uninferable)
-    if inferred is stmt:
+    if (inferred := next(stmt.infer(context), util.Uninferable)) is stmt:
         yield inferred
         return {"node": stmt, "context": context}
     # else, infer recursively, except Uninferable object that should be returned as is
@@ -369,16 +368,14 @@ class BaseContainer(_base_nodes.ParentAssignNode, Instance, metaclass=abc.ABCMet
 
         for elt in self.elts:
             if isinstance(elt, Starred):
-                starred = util.safe_infer(elt.value, context)
-                if not starred:
+                if not (starred := util.safe_infer(elt.value, context)):
                     raise InferenceError(node=self, context=context)
                 if not hasattr(starred, "elts"):
                     raise InferenceError(node=self, context=context)
                 # TODO: fresh context?
                 values.extend(starred._infer_sequence_helper(context))
             elif isinstance(elt, NamedExpr):
-                value = util.safe_infer(elt.value, context)
-                if not value:
+                if not (value := util.safe_infer(elt.value, context)):
                     raise InferenceError(node=self, context=context)
                 values.append(value)
             else:
@@ -466,10 +463,9 @@ class AssignName(
         if not stmts:
             # Try to see if the name is enclosed in a nested function
             # and use the higher (first function) scope for searching.
-            parent_function = _higher_function_scope(self.scope())
-            if parent_function:
-                _, stmts = parent_function.lookup(self.name)
 
+            if parent_function := _higher_function_scope(self.scope()):
+                _, stmts = parent_function.lookup(self.name)
             if not stmts:
                 raise NameInferenceError(
                     name=self.name, scope=self.scope(), context=context
@@ -581,8 +577,7 @@ class Name(_base_nodes.LookupMixIn, _base_nodes.NoChildrenNode):
         if not stmts:
             # Try to see if the name is enclosed in a nested function
             # and use the higher (first function) scope for searching.
-            parent_function = _higher_function_scope(self.scope())
-            if parent_function:
+            if parent_function := _higher_function_scope(self.scope()):
                 _, stmts = parent_function.lookup(self.name)
 
             if not stmts:
@@ -905,23 +900,19 @@ class Arguments(
             pos_only[arg.name] = (annotation, default)
 
         if self.vararg:
-            annotation = self.varargannotation
-            if annotation is not None:
+            if (annotation := self.varargannotation) is not None:
                 annotation = annotation.as_string()
             pos_only[self.vararg] = (annotation, None)
 
         for index, kwarg in enumerate(self.kwonlyargs):
-            annotation = self.kwonlyargs_annotations[index]
-            if annotation is not None:
+            if (annotation := self.kwonlyargs_annotations[index]) is not None:
                 annotation = annotation.as_string()
-            default = self.kw_defaults[index]
-            if default is not None:
+            if (default := self.kw_defaults[index]) is not None:
                 default = default.as_string()
             kw_only[kwarg.name] = (annotation, default)
 
         if self.kwarg:
-            annotation = self.kwargannotation
-            if annotation is not None:
+            if (annotation := self.kwargannotation) is not None:
                 annotation = annotation.as_string()
             kw_only[self.kwarg] = (annotation, None)
 
@@ -946,10 +937,11 @@ class Arguments(
                 return self.kw_defaults[index]
             raise NoDefault(func=self.parent, name=argname)
 
-        index = _find_arg(argname, args)[0]
-        if index is not None:
-            idx = index - (len(args) - len(self.defaults) - len(self.kw_defaults))
-            if idx >= 0:
+        if (index := _find_arg(argname, args)[0]) is not None:
+
+            if (
+                idx := index - (len(args) - len(self.defaults) - len(self.kw_defaults))
+            ) >= 0:
                 return self.defaults[idx]
 
         raise NoDefault(func=self.parent, name=argname)
@@ -2485,8 +2477,8 @@ class Dict(NodeNG, Instance):
         values: dict[SuccessfulInferenceResult, SuccessfulInferenceResult] = {}
         for name, value in self.items:
             if isinstance(name, DictUnpack):
-                double_starred = util.safe_infer(value, context)
-                if not double_starred:
+
+                if not (double_starred := util.safe_infer(value, context)):
                     raise InferenceError
                 if not isinstance(double_starred, Dict):
                     raise InferenceError(node=self, context=context)
@@ -2858,8 +2850,7 @@ class ImportFrom(_base_nodes.ImportNode):
     ) -> Generator[InferenceResult]:
         """Infer a ImportFrom node: return the imported module/object."""
         context = context or InferenceContext()
-        name = context.lookupname
-        if name is None:
+        if (name := context.lookupname) is None:
             raise InferenceError(node=self, context=context)
         if asname:
             try:
@@ -3189,8 +3180,7 @@ class Import(_base_nodes.ImportNode):
     ) -> Generator[nodes.Module]:
         """Infer an Import node: return the imported module/object."""
         context = context or InferenceContext()
-        name = context.lookupname
-        if name is None:
+        if (name := context.lookupname) is None:
             raise InferenceError(node=self, context=context)
 
         try:
@@ -3739,8 +3729,7 @@ class Subscript(NodeNG):
                 if value.__class__ == Instance:
                     index_value = index
                 elif index.__class__ == Instance:
-                    instance_as_index = helpers.class_instance_as_index(index)
-                    if instance_as_index:
+                    if instance_as_index := helpers.class_instance_as_index(index):
                         index_value = instance_as_index
                 else:
                     index_value = index
@@ -4314,8 +4303,7 @@ class UnaryOp(_base_nodes.OperatorNode):
                 # The operand doesn't support this operation.
                 yield util.BadUnaryOperationMessage(operand, self.op, exc)
             except AttributeError as exc:
-                meth = UNARY_OP_METHOD[self.op]
-                if meth is None:
+                if (meth := UNARY_OP_METHOD[self.op]) is None:
                     # `not node`. Determine node's boolean
                     # value and negate its result, unless it is
                     # Uninferable, which will be returned as is.
@@ -4351,8 +4339,7 @@ class UnaryOp(_base_nodes.OperatorNode):
                         context.callcontext = CallContext(args=[], callee=inferred)
 
                         call_results = inferred.infer_call_result(self, context=context)
-                        result = next(call_results, None)
-                        if result is None:
+                        if (result := next(call_results, None)) is None:
                             # Failed to infer, return the same type.
                             yield operand
                         else:

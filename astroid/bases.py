@@ -662,8 +662,7 @@ class BoundMethod(UnboundMethod):
             and len(caller.args) == 4
         ):
             # Check if we have a ``type.__new__(mcs, name, bases, attrs)`` call.
-            new_cls = self._infer_type_new_call(caller, context)
-            if new_cls:
+            if new_cls := self._infer_type_new_call(caller, context):
                 return iter((new_cls,))
 
         return super().infer_call_result(caller, context)

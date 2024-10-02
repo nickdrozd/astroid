@@ -70,8 +70,7 @@ def _object_type(
 
     for inferred in node.infer(context=context):
         if isinstance(inferred, scoped_nodes.ClassDef):
-            metaclass = inferred.metaclass(context=context)
-            if metaclass:
+            if metaclass := inferred.metaclass(context=context):
                 yield metaclass
                 continue
             yield builtins.getattr("type")[0]
@@ -282,8 +281,7 @@ def object_len(node, context: InferenceContext | None = None):
     if isinstance(inferred_node, nodes.Dict):
         return len(inferred_node.items)
 
-    node_type = object_type(inferred_node, context=context)
-    if not node_type:
+    if not (node_type := object_type(inferred_node, context=context)):
         raise InferenceError(node=node)
 
     try:

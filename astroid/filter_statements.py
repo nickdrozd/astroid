@@ -142,8 +142,8 @@ def _filter_stmts(
 
         if isinstance(assign_type, nodes.NamedExpr):
             # If the NamedExpr is in an if statement we do some basic control flow inference
-            if_parent = _get_if_statement_ancestor(assign_type)
-            if if_parent:
+
+            if if_parent := _get_if_statement_ancestor(assign_type):
                 # If the if statement is within another if statement we append the node
                 # to possible statements
                 if _get_if_statement_ancestor(if_parent):

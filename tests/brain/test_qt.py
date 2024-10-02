@@ -34,8 +34,8 @@ class TestBrainQt:
         printsupport.QPrintPreviewDialog.paintRequested  #@
         """
         node = extract_node(src)
-        attribute_node = node.inferred()[0]
-        if attribute_node is Uninferable:
+
+        if (attribute_node := node.inferred()[0]) is Uninferable:
             pytest.skip("PyQt6 C bindings may not be installed?")
         assert isinstance(attribute_node, UnboundMethod)
         # scoped_nodes.Lambda.instance_attrs is typed as Dict[str, List[NodeNG]]
@@ -50,8 +50,8 @@ class TestBrainQt:
         timer.timeout.connect  #@
         """
         node = extract_node(src)
-        attribute_node = node.inferred()[0]
-        if attribute_node is Uninferable:
+
+        if (attribute_node := node.inferred()[0]) is Uninferable:
             pytest.skip("PyQt6 C bindings may not be installed?")
         assert isinstance(attribute_node, FunctionDef)
         assert attribute_node.implicit_parameters() == 1
@@ -68,8 +68,8 @@ class TestBrainQt:
         timer.timeout.disconnect  #@
         """
         node = extract_node(src)
-        attribute_node = node.inferred()[0]
-        if attribute_node is Uninferable:
+
+        if (attribute_node := node.inferred()[0]) is Uninferable:
             pytest.skip("PyQt6 C bindings may not be installed?")
         assert isinstance(attribute_node, FunctionDef)
         assert attribute_node.args.defaults

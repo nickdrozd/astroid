@@ -387,8 +387,9 @@ def _find_spec_with_path(
     # Support for custom finders
     for meta_finder in sys.meta_path:
         # See if we support the customer import hook of the meta_finder
-        meta_finder_name = meta_finder.__class__.__name__
-        if meta_finder_name not in _MetaPathFinderModuleTypes:
+        if (
+            meta_finder_name := meta_finder.__class__.__name__
+        ) not in _MetaPathFinderModuleTypes:
             # Setuptools>62 creates its EditableFinders dynamically and have
             # "type" as their __class__.__name__. We check __name__ as well
             # to see if we can support the finder.
@@ -408,8 +409,7 @@ def _find_spec_with_path(
         if not hasattr(meta_finder, "find_spec"):
             continue
 
-        spec = meta_finder.find_spec(modname, submodule_path)
-        if spec:
+        if spec := meta_finder.find_spec(modname, submodule_path):
             return (
                 meta_finder,
                 ModuleSpec(

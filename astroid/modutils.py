@@ -185,13 +185,12 @@ def load_module_from_name(dotted_name: str) -> types.ModuleType:
     ):
         module = importlib.import_module(dotted_name)
 
-    stderr_value = stderr.getvalue()
-    if stderr_value:
+    if stderr_value := stderr.getvalue():
         logger.error(
             "Captured stderr while importing %s:\n%s", dotted_name, stderr_value
         )
-    stdout_value = stdout.getvalue()
-    if stdout_value:
+
+    if stdout_value := stdout.getvalue():
         logger.info(
             "Captured stdout while importing %s:\n%s", dotted_name, stdout_value
         )
@@ -234,8 +233,7 @@ def check_modpath_has_init(path: str, mod_path: list[str]) -> bool:
         modpath.append(part)
         path = os.path.join(path, part)
         if not _has_init(path):
-            old_namespace = util.is_namespace(".".join(modpath))
-            if not old_namespace:
+            if not util.is_namespace(".".join(modpath)):
                 return False
     return True
 
@@ -288,8 +286,8 @@ def modpath_from_file_with_callback(
     ):
         if not pathname:
             continue
-        modpath = _get_relative_base_path(filename, pathname)
-        if not modpath:
+
+        if not (modpath := _get_relative_base_path(filename, pathname)):
             continue
         assert is_package_cb is not None
         if is_package_cb(pathname, modpath[:-1]):

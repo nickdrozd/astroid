@@ -443,8 +443,7 @@ class TreeRebuilder:
     def visit(self, node: ast.AST | None, parent: NodeNG) -> NodeNG | None:
         if node is None:
             return None
-        cls = node.__class__
-        if cls in self._visit_meths:
+        if (cls := node.__class__) in self._visit_meths:
             visit_method = self._visit_meths[cls]
         else:
             cls_name = cls.__name__
@@ -1100,8 +1099,7 @@ class TreeRebuilder:
             returns = None
 
         type_comment_args = type_comment_returns = None
-        type_comment_annotation = self.check_function_type_comment(node, newnode)
-        if type_comment_annotation:
+        if type_comment_annotation := self.check_function_type_comment(node, newnode):
             type_comment_returns, type_comment_args = type_comment_annotation
         newnode.postinit(
             args=self.visit(node.args, newnode),
