@@ -10,7 +10,6 @@ from typing import (
     Generic,
     Protocol,
     TypeVar,
-    Union,
 )
 
 if TYPE_CHECKING:
@@ -22,10 +21,15 @@ if TYPE_CHECKING:
     from astroid.interpreter._import import spec
 
 
-InferenceResult = Union["nodes.NodeNG", "util.UninferableBase", "bases.Proxy"]
-SuccessfulInferenceResult = Union["nodes.NodeNG", "bases.Proxy"]
+InferenceResult = (
+    type["nodes.NodeNG"] | type["util.UninferableBase"] | type["bases.Proxy"]
+)
+
+SuccessfulInferenceResult = type["nodes.NodeNG"] | type["bases.Proxy"]
+
 _SuccessfulInferenceResultT = TypeVar(
-    "_SuccessfulInferenceResultT", bound=SuccessfulInferenceResult
+    "_SuccessfulInferenceResultT",
+    bound=SuccessfulInferenceResult,
 )
 _SuccessfulInferenceResultT_contra = TypeVar(
     "_SuccessfulInferenceResultT_contra",
@@ -33,22 +37,22 @@ _SuccessfulInferenceResultT_contra = TypeVar(
     contravariant=True,
 )
 
-ConstFactoryResult = Union[
-    "nodes.List",
-    "nodes.Set",
-    "nodes.Tuple",
-    "nodes.Dict",
-    "nodes.Const",
-    "nodes.EmptyNode",
-]
+ConstFactoryResult = (
+    type["nodes.List"]
+    | type["nodes.Set"]
+    | type["nodes.Tuple"]
+    | type["nodes.Dict"]
+    | type["nodes.Const"]
+    | type["nodes.EmptyNode"]
+)
 
 InferBinaryOp = Callable[
     [
         _SuccessfulInferenceResultT,
-        Union["nodes.AugAssign", "nodes.BinOp"],
+        type["nodes.AugAssign"] | type["nodes.BinOp"],
         str,
         InferenceResult,
-        "InferenceContext",
+        type["InferenceContext"],
         SuccessfulInferenceResult,
     ],
     Generator[InferenceResult],

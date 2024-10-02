@@ -11,7 +11,6 @@ from functools import singledispatch as _singledispatch
 from typing import (
     TYPE_CHECKING,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -49,7 +48,7 @@ if TYPE_CHECKING:
 _NodesT = TypeVar("_NodesT", bound="NodeNG")
 _NodesT2 = TypeVar("_NodesT2", bound="NodeNG")
 _NodesT3 = TypeVar("_NodesT3", bound="NodeNG")
-SkipKlassT = Union[None, type["NodeNG"], tuple[type["NodeNG"], ...]]
+SkipKlassT = type["NodeNG"] | tuple[type["NodeNG"], ...] | None
 
 
 class NodeNG:

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from astroid.typing import InferenceResult, SuccessfulInferenceResult
 
     _InferenceCache = dict[
-        tuple["NodeNG", Optional[str], Optional[str], Optional[str]],
+        tuple["NodeNG", str | None, str | None, str | None],
         Sequence["NodeNG"],
     ]
 

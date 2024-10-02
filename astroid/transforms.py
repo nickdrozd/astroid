@@ -12,28 +12,29 @@ from astroid.context import _invalidate_cache
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Optional, TypeVar, Union
+    from typing import TypeVar
 
     from astroid import nodes
     from astroid.typing import SuccessfulInferenceResult, TransformFn
 
     _SuccessfulInferenceResultT = TypeVar(
-        "_SuccessfulInferenceResultT", bound=SuccessfulInferenceResult
+        "_SuccessfulInferenceResultT",
+        bound=SuccessfulInferenceResult,
     )
 
-    _Predicate = Optional[Callable[[_SuccessfulInferenceResultT], bool]]
+    _Predicate = Callable[[_SuccessfulInferenceResultT], bool] | None
 
-    _Vistables = Union[
-        "nodes.NodeNG", list["nodes.NodeNG"], tuple["nodes.NodeNG", ...], str, None
-    ]
+    _Vistables = (
+        "nodes.NodeNG" | list["nodes.NodeNG"] | tuple["nodes.NodeNG" | ...] | str | None
+    )
 
-    _VisitReturns = Union[
-        SuccessfulInferenceResult,
-        list[SuccessfulInferenceResult],
-        tuple[SuccessfulInferenceResult, ...],
-        str,
-        None,
-    ]
+    _VisitReturns = (
+        SuccessfulInferenceResult
+        | list[SuccessfulInferenceResult]
+        | tuple[SuccessfulInferenceResult | ...]
+        | str
+        | None
+    )
 
 
 class TransformVisitor:

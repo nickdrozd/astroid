@@ -26,16 +26,16 @@ from astroid.util import Uninferable, UninferableBase, safe_infer
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from typing import Literal, Union
+    from typing import Literal
 
     from astroid import context
     from astroid.typing import InferenceResult
 
-    _FieldDefaultReturn = Union[
-        None,
-        tuple[Literal["default"], nodes.NodeNG],
-        tuple[Literal["default_factory"], nodes.Call],
-    ]
+    _FieldDefaultReturn = (
+        tuple[Literal["default"], nodes.NodeNG]
+        | tuple[Literal["default_factory"], nodes.Call]
+        | None
+    )
 
 
 DATACLASSES_DECORATORS = frozenset(("dataclass",))

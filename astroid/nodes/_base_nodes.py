@@ -30,17 +30,17 @@ from astroid.typing import InferenceResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
-    from typing import Any, ClassVar, Optional, Union
+    from typing import Any, ClassVar
 
     from astroid.nodes.node_classes import LocalsDictNodeNG
 
     GetFlowFactory = Callable[
         [
             InferenceResult,
-            Optional[InferenceResult],
-            Union[nodes.AugAssign, nodes.BinOp],
+            InferenceResult | None,
+            nodes.AugAssign | nodes.BinOp,
             InferenceResult,
-            Optional[InferenceResult],
+            InferenceResult | None,
             InferenceContext,
             InferenceContext,
         ],

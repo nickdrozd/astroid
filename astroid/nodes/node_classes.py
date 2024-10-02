@@ -42,7 +42,7 @@ from astroid.nodes.utils import InferenceErrorInfo
 if TYPE_CHECKING:
     import sys
     from collections.abc import Callable, Generator, Iterable, Iterator, Mapping
-    from typing import Any, ClassVar, Literal, Optional, Union
+    from typing import Any, ClassVar, Literal
 
     from astroid import nodes
     from astroid.const import Context
@@ -61,24 +61,27 @@ if TYPE_CHECKING:
     _NodesT = typing.TypeVar("_NodesT", bound=NodeNG)
     _BadOpMessageT = typing.TypeVar("_BadOpMessageT", bound=util.BadOperationMessage)
 
-    AssignedStmtsPossibleNode = Union["List", "Tuple", "AssignName", "AssignAttr", None]
+    AssignedStmtsPossibleNode = "List" | "Tuple" | "AssignName" | "AssignAttr" | None
+
     AssignedStmtsCall = Callable[
         [
             _NodesT,
             AssignedStmtsPossibleNode,
-            Optional[InferenceContext],
-            Optional[list[int]],
+            InferenceContext | None,
+            list[int] | None,
         ],
         Any,
     ]
     InferBinaryOperation = Callable[
-        [_NodesT, Optional[InferenceContext]],
-        Generator[Union[InferenceResult, _BadOpMessageT]],
+        [_NodesT, InferenceContext | None],
+        Generator[InferenceResult | _BadOpMessageT],
     ]
+
     InferLHS = Callable[
-        [_NodesT, Optional[InferenceContext]],
-        Generator[InferenceResult, None, Optional[InferenceErrorInfo]],
+        [_NodesT, InferenceContext | None],
+        Generator[InferenceResult, None, InferenceErrorInfo | None],
     ]
+
     InferUnaryOp = Callable[[_NodesT, str], ConstFactoryResult]
 
 

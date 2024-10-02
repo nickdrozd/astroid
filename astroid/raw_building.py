@@ -26,16 +26,16 @@ from astroid.nodes import node_classes
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from typing import Any, Union
+    from typing import Any
 
-    _FunctionTypes = Union[
-        types.FunctionType,
-        types.MethodType,
-        types.BuiltinFunctionType,
-        types.WrapperDescriptorType,
-        types.MethodDescriptorType,
-        types.ClassMethodDescriptorType,
-    ]
+    _FunctionTypes = (
+        types.FunctionType
+        | types.MethodType
+        | types.BuiltinFunctionType
+        | types.WrapperDescriptorType
+        | types.MethodDescriptorType
+        | types.ClassMethodDescriptorType
+    )
 
 logger = logging.getLogger(__name__)
 

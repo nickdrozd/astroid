@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     else:
         from typing_extensions import Self
 
-    _NameNodes = Union[nodes.AssignAttr, nodes.Attribute, nodes.AssignName, nodes.Name]
+    _NameNodes = nodes.AssignAttr | nodes.Attribute | nodes.AssignName | nodes.Name
 
 
 class Constraint(ABC):
