@@ -37,7 +37,7 @@ from astroid.manager import AstroidManager
 from astroid.nodes import _base_nodes
 from astroid.nodes.const import OP_PRECEDENCE
 from astroid.nodes.node_ng import NodeNG
-from astroid.typing import InferenceErrorInfo
+from astroid.nodes.utils import InferenceErrorInfo
 
 if TYPE_CHECKING:
     import sys

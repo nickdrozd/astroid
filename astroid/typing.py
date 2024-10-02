@@ -9,7 +9,6 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     Protocol,
-    TypedDict,
     TypeVar,
     Union,
 )
@@ -21,30 +20,6 @@ if TYPE_CHECKING:
     from astroid import bases, exceptions, nodes, transforms, util
     from astroid.context import InferenceContext
     from astroid.interpreter._import import spec
-
-
-class InferenceErrorInfo(TypedDict):
-    """Store additional Inference error information
-    raised with StopIteration exception.
-    """
-
-    node: nodes.NodeNG
-    context: InferenceContext | None
-
-
-class AstroidManagerBrain(TypedDict):
-    """Dictionary to store relevant information for a AstroidManager class."""
-
-    astroid_cache: dict[str, nodes.Module]
-    _mod_file_cache: dict[
-        tuple[str, str | None], spec.ModuleSpec | exceptions.AstroidImportError
-    ]
-    _failed_import_hooks: list[Callable[[str], nodes.Module]]
-    always_load_extensions: bool
-    optimize_ast: bool
-    max_inferable_values: int
-    extension_package_whitelist: set[str]
-    _transform: transforms.TransformVisitor
 
 
 InferenceResult = Union["nodes.NodeNG", "util.UninferableBase", "bases.Proxy"]

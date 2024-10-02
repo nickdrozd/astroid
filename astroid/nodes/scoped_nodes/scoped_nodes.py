@@ -48,7 +48,7 @@ from astroid.nodes import (
 )
 from astroid.nodes.scoped_nodes.mixin import ComprehensionScope, LocalsDictNodeNG
 from astroid.nodes.scoped_nodes.utils import builtin_lookup
-from astroid.typing import InferenceErrorInfo
+from astroid.nodes.utils import InferenceErrorInfo
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator, Sequence
