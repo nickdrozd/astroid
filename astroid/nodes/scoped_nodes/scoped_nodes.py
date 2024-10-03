@@ -34,6 +34,7 @@ from astroid.context import (
     bind_context_to_node,
     copy_context,
 )
+from astroid.decorators import yes_if_nothing_inferred
 from astroid.exceptions import (
     AstroidBuildingError,
     AstroidTypeError,
@@ -63,7 +64,6 @@ from astroid.nodes._base_nodes import (
 from astroid.nodes.scoped_nodes.mixin import ComprehensionScope, LocalsDictNodeNG
 from astroid.nodes.scoped_nodes.utils import builtin_lookup
 from astroid.nodes.utils import InferenceErrorInfo
-from astroid.protocols import instance_class_infer_binary_op
 from astroid.util import Uninferable, UninferableBase
 
 if TYPE_CHECKING:
@@ -1920,7 +1920,16 @@ class ClassDef(
         for local_name, node in self.implicit_locals():
             self.add_local_node(node, local_name)
 
-    infer_binary_op: ClassVar[InferBinaryOp[ClassDef]] = instance_class_infer_binary_op
+    @yes_if_nothing_inferred
+    def infer_binary_op(
+        self,
+        opnode: nodes.AugAssign | nodes.BinOp,
+        operator: str,
+        other: InferenceResult,
+        context: InferenceContext,
+        method: SuccessfulInferenceResult,
+    ) -> Generator[InferenceResult]:
+        return method.infer_call_result(self, context)
 
     def implicit_parameters(self) -> Literal[1]:
         return 1
