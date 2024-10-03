@@ -10,19 +10,24 @@ from typing import TYPE_CHECKING, overload
 
 from astroid.exceptions import ParentMissingError
 from astroid.filter_statements import _filter_stmts
-from astroid.nodes import _base_nodes, scoped_nodes
+from astroid.nodes import scoped_nodes
+from astroid.nodes._base_nodes import LookupMixIn
 from astroid.nodes.scoped_nodes.utils import builtin_lookup
 
 if TYPE_CHECKING:
     from typing import TypeVar
 
-    from astroid import nodes
+    from astroid.nodes import (
+        ClassDef,
+        Comprehension,
+        NodeNG,
+    )
     from astroid.typing import InferenceResult, SuccessfulInferenceResult
 
     _T = TypeVar("_T")
 
 
-class LocalsDictNodeNG(_base_nodes.LookupMixIn):
+class LocalsDictNodeNG(LookupMixIn):
     """this class provides locals handling common to Module, FunctionDef
     and ClassDef nodes, including a dict like interface for direct access
     to locals information
@@ -57,8 +62,8 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
         return self
 
     def scope_lookup(
-        self, node: _base_nodes.LookupMixIn, name: str, offset: int = 0
-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+        self, node: LookupMixIn, name: str, offset: int = 0
+    ) -> tuple[LocalsDictNodeNG, list[NodeNG]]:
         """Lookup where the given variable is assigned.
 
         :param node: The node to look for assignments up to.
@@ -75,8 +80,8 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
         raise NotImplementedError
 
     def _scope_lookup(
-        self, node: _base_nodes.LookupMixIn, name: str, offset: int = 0
-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+        self, node: LookupMixIn, name: str, offset: int = 0
+    ) -> tuple[LocalsDictNodeNG, list[NodeNG]]:
         """XXX method for interfacing the scope lookup"""
         try:
             stmts = _filter_stmts(node, self.locals[name], self, offset)
@@ -96,7 +101,7 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
         # self is at the top level of a module, or is enclosed only by ClassDefs
         return builtin_lookup(name)
 
-    def set_local(self, name: str, stmt: nodes.NodeNG) -> None:
+    def set_local(self, name: str, stmt: NodeNG) -> None:
         """Define that the given name is declared in the given statement node.
 
         .. seealso:: :meth:`scope`
@@ -110,7 +115,7 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
 
     __setitem__ = set_local
 
-    def _append_node(self, child: nodes.NodeNG) -> None:
+    def _append_node(self, child: NodeNG) -> None:
         """append a child, linking it in the tree"""
         # pylint: disable=no-member; depending by the class
         # which uses the current class as a mixin or base class.
@@ -120,14 +125,12 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
         child.parent = self
 
     @overload
-    def add_local_node(
-        self, child_node: nodes.ClassDef, name: str | None = ...
-    ) -> None: ...
+    def add_local_node(self, child_node: ClassDef, name: str | None = ...) -> None: ...
 
     @overload
-    def add_local_node(self, child_node: nodes.NodeNG, name: str) -> None: ...
+    def add_local_node(self, child_node: NodeNG, name: str) -> None: ...
 
-    def add_local_node(self, child_node: nodes.NodeNG, name: str | None = None) -> None:
+    def add_local_node(self, child_node: NodeNG, name: str | None = None) -> None:
         """Append a child that should alter the locals of this scope node.
 
         :param child_node: The child node that will alter locals.
@@ -200,5 +203,5 @@ class ComprehensionScope(LocalsDictNodeNG):
 
     scope_lookup = LocalsDictNodeNG._scope_lookup
 
-    generators: list[nodes.Comprehension]
+    generators: list[Comprehension]
     """The generators that are looped through."""

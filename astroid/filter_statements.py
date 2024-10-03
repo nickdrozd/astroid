@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING
 from astroid import nodes
 
 if TYPE_CHECKING:
-    from astroid.nodes import _base_nodes
+    from astroid.nodes._base_nodes import LookupMixIn, Statement
     from astroid.typing import SuccessfulInferenceResult
 
 
 def _get_filtered_node_statements(
     base_node: nodes.NodeNG, stmt_nodes: list[nodes.NodeNG]
-) -> list[tuple[nodes.NodeNG, _base_nodes.Statement]]:
+) -> list[tuple[nodes.NodeNG, Statement]]:
     statements = [(node, node.statement()) for node in stmt_nodes]
     # Next we check if we have ExceptHandlers that are parent
     # of the underlying variable, in which case the last one survives
@@ -48,7 +48,7 @@ def _get_if_statement_ancestor(node: nodes.NodeNG) -> nodes.If | None:
 
 
 def _filter_stmts(
-    base_node: _base_nodes.LookupMixIn,
+    base_node: LookupMixIn,
     stmts: list[SuccessfulInferenceResult],
     frame: nodes.LocalsDictNodeNG,
     offset: int,
@@ -92,7 +92,7 @@ def _filter_stmts(
         if base_node.parent and base_node.statement() is myframe and myframe.parent:
             myframe = myframe.parent.frame()
 
-    mystmt: _base_nodes.Statement | None = None
+    mystmt: Statement | None = None
     if base_node.parent:
         mystmt = base_node.statement()
 

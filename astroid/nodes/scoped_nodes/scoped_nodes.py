@@ -17,7 +17,17 @@ import warnings
 from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING
 
-from astroid import bases, protocols, util
+from astroid.bases import (
+    AsyncGenerator,
+    BoundMethod,
+    Instance,
+    UnboundMethod,
+    _infer_stmts,
+    _is_property,
+)
+from astroid.bases import (
+    Generator as bGenerator,
+)
 from astroid.context import (
     CallContext,
     InferenceContext,
@@ -42,13 +52,19 @@ from astroid.manager import AstroidManager
 from astroid.nodes import (
     Arguments,
     Const,
-    _base_nodes,
     const_factory,
     node_classes,
+)
+from astroid.nodes._base_nodes import (
+    FilterStmtsBaseNode,
+    MultiLineBlockNode,
+    Statement,
 )
 from astroid.nodes.scoped_nodes.mixin import ComprehensionScope, LocalsDictNodeNG
 from astroid.nodes.scoped_nodes.utils import builtin_lookup
 from astroid.nodes.utils import InferenceErrorInfo
+from astroid.protocols import instance_class_infer_binary_op
+from astroid.util import Uninferable, UninferableBase
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator, Sequence
@@ -170,11 +186,11 @@ def clean_duplicates_mro(
 def function_to_method(n, klass):
     if isinstance(n, FunctionDef):
         if n.type == "classmethod":
-            return bases.BoundMethod(n, klass)
+            return BoundMethod(n, klass)
         if n.type == "property":
             return n
         if n.type != "staticmethod":
-            return bases.UnboundMethod(n)
+            return UnboundMethod(n)
     return n
 
 
@@ -384,7 +400,7 @@ class Module(LocalsDictNodeNG):
         context = copy_context(context)
         context.lookupname = name
         try:
-            return bases._infer_stmts(self.getattr(name, context), context, frame=self)
+            return _infer_stmts(self.getattr(name, context), context, frame=self)
         except AttributeInferenceError as error:
             raise InferenceError(
                 str(error), target=self, attribute=name, context=context
@@ -713,7 +729,7 @@ class DictComp(ComprehensionScope):
             For a :class:`DictComp` this is always :class:`Uninferable`.
         :rtype: Uninferable
         """
-        return util.Uninferable
+        return Uninferable
 
     def get_children(self):
         yield self.key
@@ -770,7 +786,7 @@ class SetComp(ComprehensionScope):
             For a :class:`SetComp` this is always :class:`Uninferable`.
         :rtype: Uninferable
         """
-        return util.Uninferable
+        return Uninferable
 
     def get_children(self):
         yield self.elt
@@ -827,7 +843,7 @@ class ListComp(ComprehensionScope):
             For a :class:`ListComp` this is always :class:`Uninferable`.
         :rtype: Uninferable
         """
-        return util.Uninferable
+        return Uninferable
 
     def get_children(self):
         yield self.elt
@@ -847,7 +863,7 @@ def _infer_decorator_callchain(node):
         result = next(node.infer_call_result(node.parent), None)
     except InferenceError:
         return None
-    if isinstance(result, bases.Instance):
+    if isinstance(result, Instance):
         result = result._proxied
     if isinstance(result, ClassDef):
         if result.is_subtype_of("builtins.classmethod"):
@@ -872,7 +888,7 @@ def _infer_decorator_callchain(node):
     return None
 
 
-class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
     """Class representing an :class:`ast.Lambda` node.
 
     >>> import astroid
@@ -1057,9 +1073,9 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
 
 
 class FunctionDef(
-    _base_nodes.MultiLineBlockNode,
-    _base_nodes.FilterStmtsBaseNode,
-    _base_nodes.Statement,
+    MultiLineBlockNode,
+    FilterStmtsBaseNode,
+    Statement,
     LocalsDictNodeNG,
 ):
     """Class representing an :class:`ast.FunctionDef`.
@@ -1406,7 +1422,7 @@ class FunctionDef(
     ) -> Iterator[InferenceResult]:
         """Inferred getattr, which returns an iterator of inferred statements."""
         try:
-            return bases._infer_stmts(self.getattr(name, context), context, frame=self)
+            return _infer_stmts(self.getattr(name, context), context, frame=self)
         except AttributeInferenceError as error:
             raise InferenceError(
                 str(error), target=self, attribute=name, context=context
@@ -1503,7 +1519,7 @@ class FunctionDef(
     ) -> Generator[objects.Property | FunctionDef, None, InferenceErrorInfo]:
         from astroid import objects  # pylint: disable=import-outside-toplevel
 
-        if not self.decorators or not bases._is_property(self):
+        if not self.decorators or not _is_property(self):
             yield self
             return InferenceErrorInfo(node=self, context=context)
 
@@ -1543,9 +1559,7 @@ class FunctionDef(
         """Infer what the function returns when called."""
         if self.is_generator():
             yield (
-                bases.AsyncGenerator
-                if isinstance(self, AsyncFunctionDef)
-                else bases.Generator
+                AsyncGenerator if isinstance(self, AsyncFunctionDef) else bGenerator
             )(self, generator_initial_context=context)
             return
         # This is really a gigantic hack to work around metaclass generators
@@ -1598,7 +1612,7 @@ class FunctionDef(
                     bases=[
                         base
                         for base in class_bases
-                        if not isinstance(base, util.UninferableBase)
+                        if not isinstance(base, UninferableBase)
                     ],
                     body=[],
                     decorators=None,
@@ -1611,7 +1625,7 @@ class FunctionDef(
         if not (first_return := next(returns, None)):
             if self.body:
                 yield (
-                    util.Uninferable
+                    Uninferable
                     if self.is_abstract(
                         pass_is_abstract=True, any_raise_is_abstract=True
                     )
@@ -1629,7 +1643,7 @@ class FunctionDef(
             try:
                 yield from returnnode.value.infer(context)
             except InferenceError:
-                yield util.Uninferable
+                yield Uninferable
 
     def bool_value(self, context: InferenceContext | None = None) -> bool:
         """Determine the boolean value of this node.
@@ -1727,7 +1741,7 @@ def _is_metaclass(
                     continue
 
                 seen.add(baseobj_name)
-                if isinstance(baseobj, bases.Instance):
+                if isinstance(baseobj, Instance):
                     # not abstract
                     return False
                 if baseobj is klass:
@@ -1798,7 +1812,9 @@ def get_wrapping_class(node):
 
 
 class ClassDef(
-    _base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG, _base_nodes.Statement
+    FilterStmtsBaseNode,
+    LocalsDictNodeNG,
+    Statement,
 ):
     """Class representing an :class:`ast.ClassDef` node.
 
@@ -1904,9 +1920,7 @@ class ClassDef(
         for local_name, node in self.implicit_locals():
             self.add_local_node(node, local_name)
 
-    infer_binary_op: ClassVar[InferBinaryOp[ClassDef]] = (
-        protocols.instance_class_infer_binary_op
-    )
+    infer_binary_op: ClassVar[InferBinaryOp[ClassDef]] = instance_class_infer_binary_op
 
     def implicit_parameters(self) -> Literal[1]:
         return 1
@@ -1925,7 +1939,6 @@ class ClassDef(
         )
         return locals_
 
-    # pylint: disable=redefined-outer-name
     def postinit(
         self,
         bases: list[SuccessfulInferenceResult],
@@ -2017,7 +2030,7 @@ class ClassDef(
         ):
             name = name_node.value
         else:
-            return util.Uninferable
+            return Uninferable
 
         result = ClassDef(
             name,
@@ -2046,7 +2059,7 @@ class ClassDef(
             # There is currently no AST node that can represent an 'unknown'
             # node (Uninferable is not an AST node), therefore we simply return Uninferable here
             # although we know at least the name of the class.
-            return util.Uninferable
+            return Uninferable
 
         # Get the members of the class
         try:
@@ -2180,7 +2193,7 @@ class ClassDef(
                 try:
                     for baseobj in stmt.infer(context):
                         if not isinstance(baseobj, ClassDef):
-                            if isinstance(baseobj, bases.Instance):
+                            if isinstance(baseobj, Instance):
                                 baseobj = baseobj._proxied
                             else:
                                 continue
@@ -2288,7 +2301,7 @@ class ClassDef(
             return values
         raise AttributeInferenceError(target=self, attribute=name, context=context)
 
-    def instantiate_class(self) -> bases.Instance:
+    def instantiate_class(self) -> Instance:
         """Get an :class:`Instance` of the :class:`ClassDef` node.
 
         :returns: An :class:`Instance` of the :class:`ClassDef` node
@@ -2301,7 +2314,7 @@ class ClassDef(
                 return objects.ExceptionInstance(self)
         except MroError:
             pass
-        return bases.Instance(self)
+        return Instance(self)
 
     def getattr(
         self,
@@ -2383,7 +2396,7 @@ class ClassDef(
         except AttributeInferenceError:
             return
 
-        for attr in bases._infer_stmts(attrs, context, frame=cls):
+        for attr in _infer_stmts(attrs, context, frame=cls):
             if not isinstance(attr, FunctionDef):
                 yield attr
                 continue
@@ -2398,11 +2411,11 @@ class ClassDef(
                 # get_wrapping_class could return None, so just
                 # default to the current class.
                 frame = get_wrapping_class(attr) or self
-                yield bases.BoundMethod(attr, frame)
+                yield BoundMethod(attr, frame)
             elif attr.type == "staticmethod":
                 yield attr
             else:
-                yield bases.BoundMethod(attr, self)
+                yield BoundMethod(attr, self)
 
     def igetattr(
         self,
@@ -2442,7 +2455,7 @@ class ClassDef(
             for function in functions:
                 dec_names = function.decoratornames(context=context)
                 for dec_name in dec_names:
-                    if dec_name is util.Uninferable:
+                    if dec_name is Uninferable:
                         continue
                     if dec_name.split(".")[-1] == "setter":
                         setter = function
@@ -2454,20 +2467,20 @@ class ClassDef(
                 attributes = [
                     a
                     for a in attributes
-                    if a not in functions or a is last_function or bases._is_property(a)
+                    if a not in functions or a is last_function or _is_property(a)
                 ]
 
-            for inferred in bases._infer_stmts(attributes, context, frame=self):
+            for inferred in _infer_stmts(attributes, context, frame=self):
                 # yield Uninferable object instead of descriptors when necessary
                 if not isinstance(inferred, node_classes.Const) and isinstance(
-                    inferred, bases.Instance
+                    inferred, Instance
                 ):
                     try:
                         inferred._proxied.getattr("__get__", context)
                     except AttributeInferenceError:
                         yield inferred
                     else:
-                        yield util.Uninferable
+                        yield Uninferable
                 elif isinstance(inferred, objects.Property):
                     function = inferred.function
                     if not class_context:
@@ -2497,7 +2510,7 @@ class ClassDef(
         except AttributeInferenceError as error:
             if not name.startswith("__") and self.has_dynamic_getattr(context):
                 # class handle some dynamic attributes, return a Uninferable object
-                yield util.Uninferable
+                yield Uninferable
             else:
                 raise InferenceError(
                     str(error), target=self, attribute=name, context=context
@@ -2563,7 +2576,7 @@ class ClassDef(
         new_context.callcontext = CallContext(args=[index], callee=method)
 
         try:
-            return next(method.infer_call_result(self, new_context), util.Uninferable)
+            return next(method.infer_call_result(self, new_context), Uninferable)
         except AttributeError:
             # Starting with python3.9, builtin types list, dict etc...
             # are subscriptable thanks to __class_getitem___ classmethod.
@@ -2577,7 +2590,7 @@ class ClassDef(
                 return self
             raise
         except InferenceError:
-            return util.Uninferable
+            return Uninferable
 
     def methods(self):
         """Iterate over all of the method defined in this class and its parents.
@@ -2643,7 +2656,7 @@ class ClassDef(
                 return next(
                     node
                     for node in self._metaclass.infer(context=context)
-                    if not isinstance(node, util.UninferableBase)
+                    if not isinstance(node, UninferableBase)
                 )
             except (InferenceError, StopIteration):
                 return None
@@ -2711,7 +2724,7 @@ class ClassDef(
                 if isinstance(slots, node_classes.Dict)
                 else slots.itered()
             )
-            if isinstance(values, util.UninferableBase):
+            if isinstance(values, UninferableBase):
                 continue
             if not values:
                 # Stop the iteration, because the class
@@ -2819,7 +2832,7 @@ class ClassDef(
                 )
             except (InferenceError, StopIteration):
                 continue
-            if isinstance(baseobj, bases.Instance):
+            if isinstance(baseobj, Instance):
                 baseobj = baseobj._proxied
             if not isinstance(baseobj, ClassDef):
                 continue

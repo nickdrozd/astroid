@@ -11,7 +11,7 @@ import collections
 import collections.abc
 from typing import TYPE_CHECKING
 
-from astroid import decorators, nodes
+from astroid import nodes
 from astroid.const import PY310_PLUS
 from astroid.context import (
     CallContext,
@@ -19,6 +19,7 @@ from astroid.context import (
     bind_context_to_node,
     copy_context,
 )
+from astroid.decorators import yes_if_nothing_inferred
 from astroid.exceptions import (
     AstroidTypeError,
     AttributeInferenceError,
@@ -350,7 +351,7 @@ class Instance(BaseInstance):
     def __init__(self, proxied: nodes.ClassDef | None) -> None:
         super().__init__(proxied)
 
-    @decorators.yes_if_nothing_inferred
+    @yes_if_nothing_inferred
     def infer_binary_op(
         self,
         opnode: nodes.AugAssign | nodes.BinOp,

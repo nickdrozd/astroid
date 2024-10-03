@@ -12,9 +12,9 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, TypeVar
 
-from astroid import util
 from astroid.context import InferenceContext
 from astroid.exceptions import InferenceError
+from astroid.util import Uninferable, check_warnings_filter
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -69,7 +69,7 @@ def yes_if_nothing_inferred(
             yield next(generator)
         except StopIteration:
             # generator is empty
-            yield util.Uninferable
+            yield Uninferable
             return
 
         yield from generator
@@ -104,7 +104,7 @@ def raise_if_nothing_inferred(
 # Expensive decorators only used to emit Deprecation warnings.
 # If no other than the default DeprecationWarning are enabled,
 # fall back to passthrough implementations.
-if util.check_warnings_filter():  # noqa: C901
+if check_warnings_filter():  # noqa: C901
 
     def deprecate_default_argument_values(
         astroid_version: str = "3.0", **arguments: str

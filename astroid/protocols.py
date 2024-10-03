@@ -13,9 +13,20 @@ import itertools
 import operator as operator_mod
 from typing import TYPE_CHECKING
 
-from astroid import bases, decorators, nodes, util
+from astroid import nodes
+from astroid.bases import (
+    BoundMethod,
+    Instance,
+)
+from astroid.bases import (
+    Generator as bases_Generator,
+)
 from astroid.const import Context
 from astroid.context import InferenceContext, copy_context
+from astroid.decorators import (
+    raise_if_nothing_inferred,
+    yes_if_nothing_inferred,
+)
 from astroid.exceptions import (
     AstroidIndexError,
     AstroidTypeError,
@@ -24,11 +35,13 @@ from astroid.exceptions import (
     NoDefault,
 )
 from astroid.nodes import node_classes
+from astroid.util import Uninferable, UninferableBase, safe_infer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
     from typing import Any, TypeVar
 
+    from astroid.nodes.node_classes import AssignedStmtsPossibleNode
     from astroid.typing import (
         ConstFactoryResult,
         InferenceResult,
@@ -99,7 +112,7 @@ for _KEY, _IMPL in list(BIN_OP_IMPL.items()):
     BIN_OP_IMPL[_KEY + "="] = _IMPL
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def const_infer_binary_op(
     self: nodes.Const,
     opnode: nodes.AugAssign | nodes.BinOp,
@@ -107,7 +120,7 @@ def const_infer_binary_op(
     other: InferenceResult,
     context: InferenceContext,
     _: SuccessfulInferenceResult,
-) -> Generator[ConstFactoryResult | util.UninferableBase]:
+) -> Generator[ConstFactoryResult | UninferableBase]:
     not_implemented = nodes.Const(NotImplemented)
     if isinstance(other, nodes.Const):
         if (
@@ -126,12 +139,12 @@ def const_infer_binary_op(
                 # ArithmeticError is not enough: float >> float is a TypeError
                 yield not_implemented
             except Exception:  # pylint: disable=broad-except
-                yield util.Uninferable
+                yield Uninferable
         except TypeError:
             yield not_implemented
     elif isinstance(self.value, str) and operator == "%":
         # TODO(cpopa): implement string interpolation later on.
-        yield util.Uninferable
+        yield Uninferable
     else:
         yield not_implemented
 
@@ -147,12 +160,12 @@ def _multiply_seq_by_int(
         node.elts = []
         return node
     if len(self.elts) * value > 1e8:
-        node.elts = [util.Uninferable]
+        node.elts = [Uninferable]
         return node
     filtered_elts = (
-        util.safe_infer(elt, context) or util.Uninferable
+        safe_infer(elt, context) or Uninferable
         for elt in self.elts
-        if not isinstance(elt, util.UninferableBase)
+        if not isinstance(elt, UninferableBase)
     )
     node.elts = list(filtered_elts) * value
     return node
@@ -162,19 +175,17 @@ def _filter_uninferable_nodes(
     elts: Sequence[InferenceResult], context: InferenceContext
 ) -> Iterator[SuccessfulInferenceResult]:
     for elt in elts:
-        if isinstance(elt, util.UninferableBase):
+        if isinstance(elt, UninferableBase):
             yield nodes.Unknown()
             continue
 
         for inferred in elt.infer(context):
             yield (
-                nodes.Unknown()
-                if isinstance(inferred, util.UninferableBase)
-                else inferred
+                nodes.Unknown() if isinstance(inferred, UninferableBase) else inferred
             )
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def tl_infer_binary_op(
     self: _TupleListNodeT,
     opnode: nodes.AugAssign | nodes.BinOp,
@@ -182,7 +193,7 @@ def tl_infer_binary_op(
     other: InferenceResult,
     context: InferenceContext,
     method: SuccessfulInferenceResult,
-) -> Generator[_TupleListNodeT | nodes.Const | util.UninferableBase]:
+) -> Generator[_TupleListNodeT | nodes.Const | UninferableBase]:
     """Infer a binary operation on a tuple or list.
 
     The instance on which the binary operation is performed is a tuple
@@ -208,10 +219,10 @@ def tl_infer_binary_op(
             yield not_implemented
             return
         yield _multiply_seq_by_int(self, opnode, other.value, context)
-    elif isinstance(other, bases.Instance) and operator == "*":
+    elif isinstance(other, Instance) and operator == "*":
         # Verify if the instance supports __index__.
         if not (as_index := helpers.class_instance_as_index(other)):
-            yield util.Uninferable
+            yield Uninferable
         elif not isinstance(as_index.value, int):  # pragma: no cover
             # already checked by class_instance_as_index() but faster than casting
             raise AssertionError("Please open a bug report.")
@@ -221,7 +232,7 @@ def tl_infer_binary_op(
         yield not_implemented
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def instance_class_infer_binary_op(
     self: nodes.ClassDef,
     opnode: nodes.AugAssign | nodes.BinOp,
@@ -252,7 +263,7 @@ def _resolve_looppart(parts, assign_path, context):
     assign_path = assign_path[:]
     index = assign_path.pop(0)
     for part in parts:
-        if isinstance(part, util.UninferableBase):
+        if isinstance(part, UninferableBase):
             continue
         if not hasattr(part, "itered"):
             continue
@@ -275,7 +286,7 @@ def _resolve_looppart(parts, assign_path, context):
                 # we achieved to resolved the assignment path,
                 # don't infer the last part
                 yield assigned
-            elif isinstance(assigned, util.UninferableBase):
+            elif isinstance(assigned, UninferableBase):
                 break
             else:
                 # we are not yet on the last part of the path
@@ -288,10 +299,10 @@ def _resolve_looppart(parts, assign_path, context):
                     break
 
 
-@decorators.raise_if_nothing_inferred
+@raise_if_nothing_inferred
 def for_assigned_stmts(
     self: nodes.For | nodes.Comprehension,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -319,7 +330,7 @@ def for_assigned_stmts(
 
 def sequence_assigned_stmts(
     self: nodes.Tuple | nodes.List,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -343,7 +354,7 @@ def sequence_assigned_stmts(
 
 def assend_assigned_stmts(
     self: nodes.AssignName | nodes.AssignAttr,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -358,7 +369,7 @@ def _arguments_infer_argname(
     from astroid import arguments  # pylint: disable=import-outside-toplevel
 
     if not self.arguments:
-        yield util.Uninferable
+        yield Uninferable
         return
 
     args = [arg for arg in self.arguments if arg.name not in [self.vararg, self.kwarg]]
@@ -373,7 +384,7 @@ def _arguments_infer_argname(
         is_metaclass = isinstance(cls, nodes.ClassDef) and cls.type == "metaclass"
         # If this is a metaclass, then the first argument will always
         # be the class, not an instance.
-        if context.boundnode and isinstance(context.boundnode, bases.Instance):
+        if context.boundnode and isinstance(context.boundnode, Instance):
             cls = context.boundnode._proxied
         if is_metaclass or functype == "classmethod":
             yield cls
@@ -409,14 +420,14 @@ def _arguments_infer_argname(
     try:
         context = copy_context(context)
         yield from self.default_value(name).infer(context)
-        yield util.Uninferable
+        yield Uninferable
     except NoDefault:
-        yield util.Uninferable
+        yield Uninferable
 
 
 def arguments_assigned_stmts(
     self: nodes.Arguments,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -444,10 +455,10 @@ def arguments_assigned_stmts(
     return _arguments_infer_argname(self, node_name, context)
 
 
-@decorators.raise_if_nothing_inferred
+@raise_if_nothing_inferred
 def assign_assigned_stmts(
     self: nodes.AugAssign | nodes.Assign | nodes.AnnAssign | nodes.TypeAlias,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -468,12 +479,12 @@ def assign_assigned_stmts(
 
 def assign_annassigned_stmts(
     self: nodes.AnnAssign,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
     for inferred in assign_assigned_stmts(self, node, context, assign_path):
-        yield util.Uninferable if inferred is None else inferred
+        yield Uninferable if inferred is None else inferred
 
 
 def _resolve_assignment_parts(parts, assign_path, context):
@@ -503,7 +514,7 @@ def _resolve_assignment_parts(parts, assign_path, context):
             # we achieved to resolved the assignment path, don't infer the
             # last part
             yield assigned
-        elif isinstance(assigned, util.UninferableBase):
+        elif isinstance(assigned, UninferableBase):
             return
         else:
             # we are not yet on the last part of the path search on each
@@ -516,10 +527,10 @@ def _resolve_assignment_parts(parts, assign_path, context):
                 return
 
 
-@decorators.raise_if_nothing_inferred
+@raise_if_nothing_inferred
 def excepthandler_assigned_stmts(
     self: nodes.ExceptHandler,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -543,7 +554,7 @@ def _infer_context_manager(self, mgr, context):
         inferred = next(mgr.infer(context=context))
     except StopIteration as e:
         raise InferenceError(node=mgr) from e
-    if isinstance(inferred, bases.Generator):
+    if isinstance(inferred, bases_Generator):
         # Check if it is decorated with contextlib.contextmanager.
         func = inferred.parent
         if not func.decorators:
@@ -564,22 +575,22 @@ def _infer_context_manager(self, mgr, context):
         except StopIteration as e:
             raise InferenceError(node=func) from e
 
-    elif isinstance(inferred, bases.Instance):
+    elif isinstance(inferred, Instance):
         try:
             enter = next(inferred.igetattr("__enter__", context=context))
         except (InferenceError, AttributeInferenceError, StopIteration) as exc:
             raise InferenceError(node=inferred) from exc
-        if not isinstance(enter, bases.BoundMethod):
+        if not isinstance(enter, BoundMethod):
             raise InferenceError(node=enter)
         yield from enter.infer_call_result(self, context)
     else:
         raise InferenceError(node=mgr)
 
 
-@decorators.raise_if_nothing_inferred
+@raise_if_nothing_inferred
 def with_assigned_stmts(
     self: nodes.With,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -656,10 +667,10 @@ def with_assigned_stmts(
     }
 
 
-@decorators.raise_if_nothing_inferred
+@raise_if_nothing_inferred
 def named_expr_assigned_stmts(
     self: nodes.NamedExpr,
-    node: node_classes.AssignedStmtsPossibleNode,
+    node: AssignedStmtsPossibleNode,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -675,10 +686,10 @@ def named_expr_assigned_stmts(
     yield from self.value.infer(context=context)
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def starred_assigned_stmts(  # noqa: C901
     self: nodes.Starred,
-    node: node_classes.AssignedStmtsPossibleNode = None,
+    node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
 ) -> Any:
@@ -727,7 +738,7 @@ def starred_assigned_stmts(  # noqa: C901
         value = stmt.value
         lhs = stmt.targets[0]
         if not isinstance(lhs, nodes.BaseContainer):
-            yield util.Uninferable
+            yield Uninferable
             return
 
         if sum(1 for _ in lhs.nodes_of_class(nodes.Starred)) > 1:
@@ -742,16 +753,16 @@ def starred_assigned_stmts(  # noqa: C901
         try:
             rhs = next(value.infer(context))
         except (InferenceError, StopIteration):
-            yield util.Uninferable
+            yield Uninferable
             return
-        if isinstance(rhs, util.UninferableBase) or not hasattr(rhs, "itered"):
-            yield util.Uninferable
+        if isinstance(rhs, UninferableBase) or not hasattr(rhs, "itered"):
+            yield Uninferable
             return
 
         try:
             elts = collections.deque(rhs.itered())  # type: ignore[union-attr]
         except TypeError:
-            yield util.Uninferable
+            yield Uninferable
             return
 
         # Unpack iteratively the values from the rhs of the assignment,
@@ -790,17 +801,17 @@ def starred_assigned_stmts(  # noqa: C901
         try:
             inferred_iterable = next(stmt.iter.infer(context=context))
         except (InferenceError, StopIteration):
-            yield util.Uninferable
+            yield Uninferable
             return
-        if isinstance(inferred_iterable, util.UninferableBase) or not hasattr(
+        if isinstance(inferred_iterable, UninferableBase) or not hasattr(
             inferred_iterable, "itered"
         ):
-            yield util.Uninferable
+            yield Uninferable
             return
         try:
             itered = inferred_iterable.itered()  # type: ignore[union-attr]
         except TypeError:
-            yield util.Uninferable
+            yield Uninferable
             return
 
         target = stmt.target
@@ -855,7 +866,7 @@ def starred_assigned_stmts(  # noqa: C901
                     break
                 except TypeError:
                     # Most likely the itered() call failed, cannot make sense of this
-                    yield util.Uninferable
+                    yield Uninferable
                     return
                 else:
                     found_element = element
@@ -870,10 +881,10 @@ def starred_assigned_stmts(  # noqa: C901
             yield unpacked
             return
 
-        yield util.Uninferable
+        yield Uninferable
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def match_mapping_assigned_stmts(
     self: nodes.MatchMapping,
     node: nodes.AssignName,
@@ -887,7 +898,7 @@ def match_mapping_assigned_stmts(
     yield
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def match_star_assigned_stmts(
     self: nodes.MatchStar,
     node: nodes.AssignName,
@@ -901,7 +912,7 @@ def match_star_assigned_stmts(
     yield
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def match_as_assigned_stmts(
     self: nodes.MatchAs,
     node: nodes.AssignName,
@@ -919,7 +930,7 @@ def match_as_assigned_stmts(
         yield self.parent.parent.subject
 
 
-@decorators.yes_if_nothing_inferred
+@yes_if_nothing_inferred
 def generic_type_assigned_stmts(
     self: nodes.TypeVar | nodes.TypeVarTuple | nodes.ParamSpec,
     node: nodes.AssignName,

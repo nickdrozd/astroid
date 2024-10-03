@@ -16,7 +16,13 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from astroid import bases, util
+from astroid.bases import (
+    BoundMethod,
+    Instance,
+    Proxy,
+    _infer_stmts,
+    _is_property,
+)
 from astroid.exceptions import (
     AttributeInferenceError,
     InferenceError,
@@ -26,6 +32,7 @@ from astroid.exceptions import (
 from astroid.interpreter import objectmodel
 from astroid.manager import AstroidManager
 from astroid.nodes import node_classes, scoped_nodes
+from astroid.util import Uninferable
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -106,7 +113,7 @@ class Super(node_classes.NodeNG):
             mro_type = self.type
         else:
             mro_type = getattr(self.type, "_proxied", None)
-            if not isinstance(mro_type, (bases.Instance, scoped_nodes.ClassDef)):
+            if not isinstance(mro_type, (Instance, scoped_nodes.ClassDef)):
                 raise SuperError(
                     "The second argument to super must be an "
                     "instance or subtype of type, not {type}.",
@@ -186,7 +193,7 @@ class Super(node_classes.NodeNG):
                 continue
 
             found = True
-            for inferred in bases._infer_stmts([cls[name]], context, frame=self):
+            for inferred in _infer_stmts([cls[name]], context, frame=self):
                 if not isinstance(inferred, scoped_nodes.FunctionDef):
                     yield inferred
                     continue
@@ -194,7 +201,7 @@ class Super(node_classes.NodeNG):
                 # We can obtain different descriptors from a super depending
                 # on what we are accessing and where the super call is.
                 if inferred.type == "classmethod":
-                    yield bases.BoundMethod(inferred, cls)
+                    yield BoundMethod(inferred, cls)
                 elif self._scope.type == "classmethod" and inferred.type == "method":
                     yield inferred
                 elif self._class_based or inferred.type == "staticmethod":
@@ -206,15 +213,15 @@ class Super(node_classes.NodeNG):
                             caller=self, context=context
                         )
                     except InferenceError:
-                        yield util.Uninferable
-                elif bases._is_property(inferred):
+                        yield Uninferable
+                elif _is_property(inferred):
                     # TODO: support other descriptors as well.
                     try:
                         yield from inferred.infer_call_result(self, context)
                     except InferenceError:
-                        yield util.Uninferable
+                        yield Uninferable
                 else:
-                    yield bases.BoundMethod(inferred, cls)
+                    yield BoundMethod(inferred, cls)
 
         # Only if we haven't found any explicit overwrites for the
         # attribute we look it up in the special attributes
@@ -229,7 +236,7 @@ class Super(node_classes.NodeNG):
         return list(self.igetattr(name, context=context))
 
 
-class ExceptionInstance(bases.Instance):
+class ExceptionInstance(Instance):
     """Class for instances of exceptions.
 
     It has special treatment for some of the exceptions's attributes,
@@ -246,7 +253,7 @@ class ExceptionInstance(bases.Instance):
         return instance()(self)
 
 
-class DictInstance(bases.Instance):
+class DictInstance(Instance):
     """Special kind of instances for dictionaries.
 
     This instance knows the underlying object model of the dictionaries, which means
@@ -259,17 +266,17 @@ class DictInstance(bases.Instance):
 # Custom objects tailored for dictionaries, which are used to
 # disambiguate between the types of Python 2 dict's method returns
 # and Python 3 (where they return set like objects).
-class DictItems(bases.Proxy):
+class DictItems(Proxy):
     __str__ = node_classes.NodeNG.__str__
     __repr__ = node_classes.NodeNG.__repr__
 
 
-class DictKeys(bases.Proxy):
+class DictKeys(Proxy):
     __str__ = node_classes.NodeNG.__str__
     __repr__ = node_classes.NodeNG.__repr__
 
 
-class DictValues(bases.Proxy):
+class DictValues(Proxy):
     __str__ = node_classes.NodeNG.__str__
     __repr__ = node_classes.NodeNG.__repr__
 

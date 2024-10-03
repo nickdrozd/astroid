@@ -15,7 +15,6 @@ from typing import (
     overload,
 )
 
-from astroid import util
 from astroid.context import InferenceContext
 from astroid.exceptions import (
     AstroidError,
@@ -27,14 +26,22 @@ from astroid.exceptions import (
 from astroid.manager import AstroidManager
 from astroid.nodes.as_string import AsStringVisitor
 from astroid.nodes.const import OP_PRECEDENCE
+from astroid.util import Uninferable
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from sys import version_info
     from typing import Any, ClassVar, Literal
 
-    from astroid import nodes
-    from astroid.nodes import _base_nodes
+    from astroid.nodes import (
+        Assign,
+        ClassDef,
+        FunctionDef,
+        Lambda,
+        LocalsDictNodeNG,
+        Module,
+    )
+    from astroid.nodes._base_nodes import Statement
     from astroid.nodes.utils import Position
     from astroid.typing import InferenceErrorInfo, InferenceResult, InferFn
 
@@ -165,8 +172,8 @@ class NodeNG:
         limit = AstroidManager().max_inferable_values
         for i, result in enumerate(self._infer(context=context, **kwargs)):
             if i >= limit or (context.nodes_inferred > context.max_inferred):
-                results.append(util.Uninferable)
-                yield util.Uninferable
+                results.append(Uninferable)
+                yield Uninferable
                 break
             results.append(result)
             yield result
@@ -274,7 +281,7 @@ class NodeNG:
         """
         return any(self is parent for parent in node.node_ancestors())
 
-    def statement(self, *, future: Literal[None, True] = None) -> _base_nodes.Statement:
+    def statement(self, *, future: Literal[None, True] = None) -> Statement:
         """The first parent node, including self, marked as statement node.
 
         :raises StatementMissing: If self has no parent attribute.
@@ -286,14 +293,14 @@ class NodeNG:
                 stacklevel=2,
             )
         if self.is_statement:
-            return cast("_base_nodes.Statement", self)
+            return cast("Statement", self)
         if not self.parent:
             raise StatementMissing(target=self)
         return self.parent.statement()
 
     def frame(
         self, *, future: Literal[None, True] = None
-    ) -> nodes.FunctionDef | nodes.Module | nodes.ClassDef | nodes.Lambda:
+    ) -> FunctionDef | Module | ClassDef | Lambda:
         """The first parent frame node.
 
         A frame node is a :class:`Module`, :class:`FunctionDef`,
@@ -312,7 +319,7 @@ class NodeNG:
             raise ParentMissingError(target=self)
         return self.parent.frame(future=future)
 
-    def scope(self) -> nodes.LocalsDictNodeNG:
+    def scope(self) -> LocalsDictNodeNG:
         """The first parent node defining a new scope.
 
         These can be Module, FunctionDef, ClassDef, Lambda, or GeneratorExp nodes.
@@ -323,7 +330,7 @@ class NodeNG:
             raise ParentMissingError(target=self)
         return self.parent.scope()
 
-    def root(self) -> nodes.Module:
+    def root(self) -> Module:
         """Return the root node of the syntax tree.
 
         :returns: The root node.
@@ -541,7 +548,7 @@ class NodeNG:
             yield from child_node.nodes_of_class(klass, skip_klass)
 
     @cached_property
-    def _assign_nodes_in_scope(self) -> list[nodes.Assign]:
+    def _assign_nodes_in_scope(self) -> list[Assign]:
         return []
 
     def _get_name_nodes(self):
@@ -773,7 +780,7 @@ class NodeNG:
         :returns: The boolean value of this node.
         :rtype: bool or Uninferable
         """
-        return util.Uninferable
+        return Uninferable
 
     def op_precedence(self) -> int:
         # Look up by class name or default to highest precedence
