@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import collections
 import itertools
-import operator as operator_mod
 from typing import TYPE_CHECKING
 
 from astroid import nodes
@@ -35,10 +34,11 @@ from astroid.exceptions import (
     NoDefault,
 )
 from astroid.nodes import node_classes
+from astroid.nodes.const import BIN_OP_IMPL, UNARY_OPERATORS
 from astroid.util import Uninferable, UninferableBase, safe_infer
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Iterator, Sequence
+    from collections.abc import Generator, Iterator, Sequence
     from typing import Any, TypeVar
 
     from astroid.nodes.node_classes import AssignedStmtsPossibleNode
@@ -53,13 +53,6 @@ if TYPE_CHECKING:
 
 _CONTEXTLIB_MGR = "contextlib.contextmanager"
 
-_UNARY_OPERATORS: dict[str, Callable[[Any], Any]] = {
-    "+": operator_mod.pos,
-    "-": operator_mod.neg,
-    "~": operator_mod.invert,
-    "not": operator_mod.not_,
-}
-
 
 def _infer_unary_op(obj: Any, op: str) -> ConstFactoryResult:
     """Perform unary operation on `obj`, unless it is `NotImplemented`.
@@ -67,7 +60,7 @@ def _infer_unary_op(obj: Any, op: str) -> ConstFactoryResult:
     Can raise TypeError if operation is unsupported.
     """
     return nodes.const_factory(
-        obj if obj is NotImplemented else _UNARY_OPERATORS[op](obj)
+        obj if obj is NotImplemented else UNARY_OPERATORS[op](obj)
     )
 
 
@@ -89,27 +82,6 @@ def const_infer_unary_op(self, op):
 
 def dict_infer_unary_op(self, op):
     return _infer_unary_op(dict(self.items), op)
-
-
-# Binary operations
-
-BIN_OP_IMPL = {
-    "+": lambda a, b: a + b,
-    "-": lambda a, b: a - b,
-    "/": lambda a, b: a / b,
-    "//": lambda a, b: a // b,
-    "*": lambda a, b: a * b,
-    "**": lambda a, b: a**b,
-    "%": lambda a, b: a % b,
-    "&": lambda a, b: a & b,
-    "|": lambda a, b: a | b,
-    "^": lambda a, b: a ^ b,
-    "<<": lambda a, b: a << b,
-    ">>": lambda a, b: a >> b,
-    "@": operator_mod.matmul,
-}
-for _KEY, _IMPL in list(BIN_OP_IMPL.items()):
-    BIN_OP_IMPL[_KEY + "="] = _IMPL
 
 
 @yes_if_nothing_inferred
