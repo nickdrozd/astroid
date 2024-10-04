@@ -67,7 +67,7 @@ from astroid.util import Uninferable, UninferableBase
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator, Sequence
-    from typing import Any, ClassVar, Literal, NoReturn, TypeVar
+    from typing import ClassVar, Literal, NoReturn
 
     from astroid import nodes, objects
     from astroid.nodes import NodeNG
@@ -79,7 +79,7 @@ if TYPE_CHECKING:
         SuccessfulInferenceResult,
     )
 
-    _T = TypeVar("_T")
+    ClassType = Literal["class", "exception", "metaclass"]
 
 
 ITER_METHODS = ("__iter__", "__getitem__")
@@ -342,19 +342,10 @@ class Module(LocalsDictNodeNG):
                 return self, []
         return self._scope_lookup(node, name, offset)
 
-    def pytype(self) -> Literal["builtins.module"]:
-        """Get the name of the type that this node represents.
-
-        :returns: The name of the type.
-        """
+    def pytype(self) -> str:
         return "builtins.module"
 
     def display_type(self) -> str:
-        """A human readable type of this node.
-
-        :returns: The type of this node.
-        :rtype: str
-        """
         return "Module"
 
     def getattr(
@@ -590,28 +581,16 @@ class Module(LocalsDictNodeNG):
         return [name for name in self.keys() if not name.startswith("_")]
 
     def bool_value(self, context: InferenceContext | None = None) -> bool:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`Module` this is always ``True``.
-        """
         return True
 
     def get_children(self):
         yield from self.body
 
-    def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
-        """The node's frame node.
-
-        A frame node is a :class:`Module`, :class:`FunctionDef`,
-        :class:`ClassDef` or :class:`Lambda`.
-
-        :returns: The node itself.
-        """
+    def frame(self):
         return self
 
     def _infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[Module]:
         yield self
 
@@ -657,12 +636,7 @@ class GeneratorExp(ComprehensionScope):
         self.elt = elt
         self.generators = generators
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`GeneratorExp` this is always ``True``.
-        """
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
     def get_children(self):
@@ -716,12 +690,6 @@ class DictComp(ComprehensionScope):
         self.generators = generators
 
     def bool_value(self, context: InferenceContext | None = None):
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`DictComp` this is always :class:`Uninferable`.
-        :rtype: Uninferable
-        """
         return Uninferable
 
     def get_children(self):
@@ -903,19 +871,22 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
     body: NodeNG
     """The contents of the function body."""
 
-    def implicit_parameters(self) -> Literal[0]:
+    def implicit_parameters(self):
         return 0
 
     @property
-    def type(self) -> Literal["method", "function"]:
-        """Whether this is a method or function.
-
-        :returns: 'method' if this is a method, 'function' otherwise.
-        """
-        if self.args.arguments and self.args.arguments[0].name == "self":
-            if self.parent and isinstance(self.parent.scope(), ClassDef):
-                return "method"
-        return "function"
+    def type(self) -> str:
+        """Whether this is a method or function."""
+        return (
+            "method"
+            if (
+                (args := self.args.arguments)
+                and args[0].name == "self"
+                and (parent := self.parent)
+                and isinstance(parent.scope(), ClassDef)
+            )
+            else "function"
+        )
 
     def __init__(
         self,
@@ -943,31 +914,16 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
         self.args = args
         self.body = body
 
-    def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
-        """Get the name of the type that this node represents.
-
-        :returns: The name of the type.
-        """
-        if "method" in self.type:
-            return "builtins.instancemethod"
-        return "builtins.function"
+    def pytype(self) -> str:
+        return (
+            "builtins.instancemethod" if "method" in self.type else "builtins.function"
+        )
 
     def display_type(self) -> str:
-        """A human readable type of this node.
 
-        :returns: The type of this node.
-        :rtype: str
-        """
-        if "method" in self.type:
-            return "Method"
-        return "Function"
+        return "Method" if "method" in self.type else "Function"
 
-    def callable(self) -> Literal[True]:
-        """Whether this node defines something that is callable.
-
-        :returns: Whether this defines something that is callable
-            For a :class:`Lambda` this is always ``True``.
-        """
+    def callable(self) -> bool:
         return True
 
     def argnames(self) -> list[str]:
@@ -1018,26 +974,14 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
             frame = self
         return frame._scope_lookup(node, name, offset)
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`Lambda` this is always ``True``.
-        """
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
     def get_children(self):
         yield self.args
         yield self.body
 
-    def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
-        """The node's frame node.
-
-        A frame node is a :class:`Module`, :class:`FunctionDef`,
-        :class:`ClassDef` or :class:`Lambda`.
-
-        :returns: The node itself.
-        """
+    def frame(self):
         return self
 
     def getattr(
@@ -1056,7 +1000,7 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
         raise AttributeInferenceError(target=self, attribute=name)
 
     def _infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[Lambda]:
         yield self
 
@@ -1254,26 +1198,15 @@ class FunctionDef(
                             decorators.append(assign.value)
         return decorators
 
-    def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
-        """Get the name of the type that this node represents.
-
-        :returns: The name of the type.
-        """
-        if "method" in self.type:
-            return "builtins.instancemethod"
-        return "builtins.function"
+    def pytype(self) -> str:
+        return (
+            "builtins.instancemethod" if "method" in self.type else "builtins.function"
+        )
 
     def display_type(self) -> str:
-        """A human readable type of this node.
+        return "Method" if "method" in self.type else "Function"
 
-        :returns: The type of this node.
-        :rtype: str
-        """
-        if "method" in self.type:
-            return "Method"
-        return "Function"
-
-    def callable(self) -> Literal[True]:
+    def callable(self) -> bool:
         return True
 
     def argnames(self) -> list[str]:
@@ -1398,7 +1331,7 @@ class FunctionDef(
         """
         return self.args.tolineno
 
-    def implicit_parameters(self) -> Literal[0, 1]:
+    def implicit_parameters(self):
         return 1 if self.is_bound() else 0
 
     def block_range(self, lineno: int) -> tuple[int, int]:
@@ -1508,7 +1441,7 @@ class FunctionDef(
         return bool(yields_without_lambdas & yields_without_functions)
 
     def _infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[objects.Property | FunctionDef, None, InferenceErrorInfo]:
         from astroid import objects  # pylint: disable=import-outside-toplevel
 
@@ -1684,14 +1617,7 @@ class FunctionDef(
             frame = self
         return frame._scope_lookup(node, name, offset)
 
-    def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
-        """The node's frame node.
-
-        A frame node is a :class:`Module`, :class:`FunctionDef`,
-        :class:`ClassDef` or :class:`Lambda`.
-
-        :returns: The node itself.
-        """
+    def frame(self):
         return self
 
 
@@ -1754,7 +1680,7 @@ def _class_type(
     klass: ClassDef,
     ancestors: set[str] | None = None,
     context: InferenceContext | None = None,
-) -> Literal["class", "exception", "metaclass"]:
+) -> ClassType:
     """return a ClassDef node type to differ metaclass and exception
     from 'regular' classes
     """
@@ -1845,7 +1771,7 @@ class ClassDef(
     :type: objectmodel.ClassModel
     """
 
-    _type: Literal["class", "exception", "metaclass"] | None = None
+    _type: ClassType | None = None
     _metaclass: NodeNG | None = None
     _metaclass_hack = False
     hide = False
@@ -1924,7 +1850,7 @@ class ClassDef(
     ) -> Generator[InferenceResult]:
         return method.infer_call_result(self, context)
 
-    def implicit_parameters(self) -> Literal[1]:
+    def implicit_parameters(self):
         return 1
 
     def implicit_locals(self):
@@ -1986,27 +1912,13 @@ class ClassDef(
         """
         return self.fromlineno, self.tolineno
 
-    def pytype(self) -> Literal["builtins.type"]:
-        """Get the name of the type that this node represents.
-
-        :returns: The name of the type.
-        """
+    def pytype(self) -> str:
         return "builtins.type"
 
     def display_type(self) -> str:
-        """A human readable type of this node.
-
-        :returns: The type of this node.
-        :rtype: str
-        """
         return "Class"
 
     def callable(self) -> bool:
-        """Whether this node defines something that is callable.
-
-        :returns: Whether this defines something that is callable.
-            For a :class:`ClassDef` this is always ``True``.
-        """
         return True
 
     def is_subtype_of(self, type_name, context: InferenceContext | None = None) -> bool:
@@ -2871,12 +2783,7 @@ class ClassDef(
         """
         return self._compute_mro(context=context)
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`ClassDef` this is always ``True``.
-        """
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
     def get_children(self):
@@ -2897,17 +2804,10 @@ class ClassDef(
         )
         return list(itertools.chain.from_iterable(children_assign_nodes))
 
-    def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
-        """The node's frame node.
-
-        A frame node is a :class:`Module`, :class:`FunctionDef`,
-        :class:`ClassDef` or :class:`Lambda`.
-
-        :returns: The node itself.
-        """
+    def frame(self):
         return self
 
     def _infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, _: InferenceContext | None = None, **kwargs
     ) -> Generator[ClassDef]:
         yield self

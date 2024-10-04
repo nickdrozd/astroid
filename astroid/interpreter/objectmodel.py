@@ -71,7 +71,7 @@ def _dunder_dict(instance, attributes):
     return obj
 
 
-def _get_bound_node(model: ObjectModel) -> Any:
+def _get_bound_node(model: ObjectModel):
     # TODO: Use isinstance instead of try ... except after _instance has typing
     try:
         return model._instance._proxied
@@ -354,7 +354,7 @@ class FunctionModel(ObjectModel):
             binding.
             """
 
-            def implicit_parameters(self) -> Literal[0]:
+            def implicit_parameters(self):
                 # Different than BoundMethod since the signature
                 # is different.
                 return 0

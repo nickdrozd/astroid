@@ -134,7 +134,7 @@ class Proxy:
         # as that is the only way _proxied will be correctly set as a ClassDef.
         assert isinstance(self, nodes.Const | Generator | UnionType)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str):
         if name == "_proxied":
             return self.__class__._proxied
         if name in self.__dict__:
@@ -142,7 +142,7 @@ class Proxy:
         return getattr(self._proxied, name)
 
     def infer(  # type: ignore[return]
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> collections.abc.Generator[InferenceResult, None, InferenceErrorInfo | None]:
         yield self
 
@@ -449,7 +449,7 @@ class UnboundMethod(Proxy):
             self.__class__.__name__, self._proxied.name, frame.qname(), id(self)
         )
 
-    def implicit_parameters(self) -> Literal[0, 1]:
+    def implicit_parameters(self):
         return 0
 
     def is_bound(self) -> bool:
@@ -529,7 +529,7 @@ class UnboundMethod(Proxy):
                 yield Instance(inferred)
             raise InferenceError
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
 
@@ -546,13 +546,13 @@ class BoundMethod(UnboundMethod):
         super().__init__(proxy)
         self.bound = bound
 
-    def implicit_parameters(self) -> Literal[0, 1]:
+    def implicit_parameters(self):
         if self.name == "__new__":
             # __new__ acts as a classmethod but the class argument is not implicit.
             return 0
         return 1
 
-    def is_bound(self) -> Literal[True]:
+    def is_bound(self) -> bool:
         return True
 
     def _infer_type_new_call(
@@ -675,7 +675,7 @@ class BoundMethod(UnboundMethod):
 
         return super().infer_call_result(caller, context)
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
 
@@ -705,7 +705,7 @@ class Generator(BaseInstance):
     def infer_yield_types(self) -> Iterator[InferenceResult]:
         yield from self.parent.infer_yield_result(self._call_context)
 
-    def callable(self) -> Literal[False]:
+    def callable(self) -> bool:
         return False
 
     def pytype(self) -> str:
@@ -714,7 +714,7 @@ class Generator(BaseInstance):
     def display_type(self) -> str:
         return "Generator"
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
     def __repr__(self) -> str:
@@ -731,7 +731,7 @@ class AsyncGenerator(Generator):
         super().__init__(*args, **kwargs)
         AsyncGenerator.special_attributes = objectmodel.AsyncGeneratorModel()
 
-    def pytype(self) -> Literal["builtins.async_generator"]:
+    def pytype(self) -> str:
         return "builtins.async_generator"
 
     def display_type(self) -> str:
@@ -761,13 +761,13 @@ class UnionType(BaseInstance):
         self.left = left
         self.right = right
 
-    def callable(self) -> Literal[False]:
+    def callable(self) -> bool:
         return False
 
-    def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+    def bool_value(self, context: InferenceContext | None = None) -> bool:
         return True
 
-    def pytype(self) -> Literal["types.UnionType"]:
+    def pytype(self) -> str:
         return "types.UnionType"
 
     def display_type(self) -> str:

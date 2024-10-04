@@ -142,10 +142,10 @@ def build_function(
     parent: nodes.NodeNG,
     args: list[str] | None = None,
     posonlyargs: list[str] | None = None,
-    defaults: list[Any] | None = None,
+    defaults: list | None = None,
     doc: str | None = None,
     kwonlyargs: list[str] | None = None,
-    kwonlydefaults: list[Any] | None = None,
+    kwonlydefaults: list | None = None,
 ) -> nodes.FunctionDef:
     """create and initialize an astroid FunctionDef node"""
     # first argument is now a list of decorators
@@ -278,19 +278,23 @@ def object_build_class(
     return _base_class_object_build(node, member, basenames)
 
 
-def _get_args_info_from_callable(
-    member: _FunctionTypes,
-) -> tuple[list[str], list[str], list[Any], list[str], list[Any]]:
+def _get_args_info_from_callable(member: _FunctionTypes) -> tuple[
+    list[str],
+    list[str],
+    list,
+    list[str],
+    list,
+]:
     """Returns args, posonlyargs, defaults, kwonlyargs.
 
     :note: currently ignores the return annotation.
     """
     signature = inspect.signature(member)
     args: list[str] = []
-    defaults: list[Any] = []
+    defaults: list = []
     posonlyargs: list[str] = []
     kwonlyargs: list[str] = []
-    kwonlydefaults: list[Any] = []
+    kwonlydefaults: list = []
 
     for param_name, param in signature.parameters.items():
         if param.kind == inspect.Parameter.POSITIONAL_ONLY:

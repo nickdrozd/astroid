@@ -1956,7 +1956,9 @@ def test_str_repr_no_warnings(node):
         if name == "self":
             continue
 
-        if name == "parent" and "NodeNG" in param_type.annotation:
+        if param_type.annotation is inspect._empty:
+            args[name] = None
+        elif name == "parent" and "NodeNG" in param_type.annotation:
             args[name] = AstroidManager().synthetic_root
         elif "int" in param_type.annotation:
             args[name] = random.randint(0, 50)

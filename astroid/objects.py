@@ -36,21 +36,19 @@ from astroid.util import Uninferable
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
-    from typing import Any, Literal, NoReturn, TypeVar
+    from typing import NoReturn
 
     from astroid.context import InferenceContext
     from astroid.typing import InferenceResult, SuccessfulInferenceResult
-
-    _T = TypeVar("_T")
 
 
 class FrozenSet(node_classes.BaseContainer):
     """Class representing a FrozenSet composite node."""
 
-    def pytype(self) -> Literal["builtins.frozenset"]:
+    def pytype(self) -> str:
         return "builtins.frozenset"
 
-    def _infer(self, context: InferenceContext | None = None, **kwargs: Any):
+    def _infer(self, context: InferenceContext | None = None, **kwargs):
         yield self
 
     @cached_property
@@ -95,7 +93,7 @@ class Super(node_classes.NodeNG):
             end_col_offset=scope.end_col_offset,
         )
 
-    def _infer(self, context: InferenceContext | None = None, **kwargs: Any):
+    def _infer(self, context: InferenceContext | None = None, **kwargs):
         yield self
 
     def super_mro(self):
@@ -136,7 +134,7 @@ class Super(node_classes.NodeNG):
         ast_builtins = AstroidManager().builtins_module
         return ast_builtins.getattr("super")[0]
 
-    def pytype(self) -> Literal["builtins.super"]:
+    def pytype(self) -> str:
         return "builtins.super"
 
     def display_type(self) -> str:
@@ -147,7 +145,7 @@ class Super(node_classes.NodeNG):
         """Get the name of the MRO pointer."""
         return self.mro_pointer.name
 
-    def qname(self) -> Literal["super"]:
+    def qname(self) -> str:
         return "super"
 
     def igetattr(  # noqa: C901
@@ -358,7 +356,7 @@ class Property(scoped_nodes.FunctionDef):
     special_attributes = objectmodel.PropertyModel()
     type = "property"
 
-    def pytype(self) -> Literal["builtins.property"]:
+    def pytype(self) -> str:
         return "builtins.property"
 
     def infer_call_result(
@@ -368,7 +366,5 @@ class Property(scoped_nodes.FunctionDef):
     ) -> NoReturn:
         raise InferenceError("Properties are not callable")
 
-    def _infer(
-        self: _T, context: InferenceContext | None = None, **kwargs: Any
-    ) -> Generator[_T]:
+    def _infer(self, context: InferenceContext | None = None, **kwargs):
         yield self

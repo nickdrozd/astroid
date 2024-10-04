@@ -7,12 +7,7 @@ from __future__ import annotations
 import pprint
 from functools import cached_property
 from functools import singledispatch as _singledispatch
-from typing import (
-    TYPE_CHECKING,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING
 
 from astroid.context import InferenceContext
 from astroid.exceptions import (
@@ -30,7 +25,6 @@ from astroid.util import Uninferable
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from sys import version_info
-    from typing import Any, ClassVar, Literal
 
     from astroid.nodes import (
         Assign,
@@ -50,43 +44,36 @@ if TYPE_CHECKING:
         from typing_extensions import Self
 
 
-# Types for 'NodeNG.nodes_of_class()'
-_NodesT = TypeVar("_NodesT", bound="NodeNG")
-_NodesT2 = TypeVar("_NodesT2", bound="NodeNG")
-_NodesT3 = TypeVar("_NodesT3", bound="NodeNG")
-SkipKlassT = type["NodeNG"] | tuple[type["NodeNG"], ...] | None
-
-
 class NodeNG:
     """A node of the new Abstract Syntax Tree (AST).
 
     This is the base class for all Astroid node classes.
     """
 
-    is_statement: ClassVar[bool] = False
+    is_statement: bool = False
     """Whether this node indicates a statement."""
-    optional_assign: ClassVar[bool] = (
-        False  # True for For (and for Comprehension if py <3.0)
-    )
+
+    # True for For (and for Comprehension if py <3.0)
+    optional_assign: bool = False
     """Whether this node optionally assigns a variable.
 
     This is for loop assignments because loop won't necessarily perform an
     assignment if the loop has no iterations.
     This is also the case from comprehensions in Python 2.
     """
-    is_function: ClassVar[bool] = False  # True for FunctionDef nodes
+    is_function: bool = False  # True for FunctionDef nodes
     """Whether this node indicates a function."""
-    is_lambda: ClassVar[bool] = False
+    is_lambda: bool = False
 
     # Attributes below are set by the builder module or by raw factories
-    _astroid_fields: ClassVar[tuple[str, ...]] = ()
+    _astroid_fields: tuple[str, ...] = ()
     """Node attributes that contain child nodes.
 
     This is redefined in most concrete classes.
     """
-    _other_fields: ClassVar[tuple[str, ...]] = ()
+    _other_fields: tuple[str, ...] = ()
     """Node attributes that do not contain child nodes."""
-    _other_other_fields: ClassVar[tuple[str, ...]] = ()
+    _other_other_fields: tuple[str, ...] = ()
     """Attributes that contain AST-dependent fields."""
     # instance specific inference function infer(node, context)
     _explicit_inference: InferFn[Self] | None = None
@@ -126,7 +113,7 @@ class NodeNG:
         """
 
     def infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[InferenceResult]:
         """Get a generator of the inferred values.
 
@@ -286,7 +273,7 @@ class NodeNG:
         :raises StatementMissing: If self has no parent attribute.
         """
         if self.is_statement:
-            return cast("Statement", self)
+            return self
         if not self.parent:
             raise StatementMissing(target=self)
         return self.parent.statement()
@@ -471,53 +458,8 @@ class NodeNG:
         assert self.parent
         self.parent.set_local(name, stmt)
 
-    @overload
-    def nodes_of_class(
-        self,
-        klass: type[_NodesT],
-        skip_klass: SkipKlassT = ...,
-    ) -> Iterator[_NodesT]: ...
-
-    @overload
-    def nodes_of_class(
-        self,
-        klass: tuple[type[_NodesT], type[_NodesT2]],
-        skip_klass: SkipKlassT = ...,
-    ) -> Iterator[_NodesT] | Iterator[_NodesT2]: ...
-
-    @overload
-    def nodes_of_class(
-        self,
-        klass: tuple[type[_NodesT], type[_NodesT2], type[_NodesT3]],
-        skip_klass: SkipKlassT = ...,
-    ) -> Iterator[_NodesT] | Iterator[_NodesT2] | Iterator[_NodesT3]: ...
-
-    @overload
-    def nodes_of_class(
-        self,
-        klass: tuple[type[_NodesT], ...],
-        skip_klass: SkipKlassT = ...,
-    ) -> Iterator[_NodesT]: ...
-
-    def nodes_of_class(  # type: ignore[misc] # mypy doesn't correctly recognize the overloads
-        self,
-        klass: (
-            type[_NodesT]
-            | tuple[type[_NodesT], type[_NodesT2]]
-            | tuple[type[_NodesT], type[_NodesT2], type[_NodesT3]]
-            | tuple[type[_NodesT], ...]
-        ),
-        skip_klass: SkipKlassT = None,
-    ) -> Iterator[_NodesT] | Iterator[_NodesT2] | Iterator[_NodesT3]:
-        """Get the nodes (including this one or below) of the given types.
-
-        :param klass: The types of node to search for.
-
-        :param skip_klass: The types of node to ignore. This is useful to ignore
-            subclasses of :attr:`klass`.
-
-        :returns: The node of the given types.
-        """
+    def nodes_of_class(self, klass, skip_klass=None) -> Iterator:
+        """Get the nodes (including this one or below) of the given types."""
         if isinstance(self, klass):
             yield self
 
@@ -554,7 +496,7 @@ class NodeNG:
         pass
 
     def _infer(
-        self, context: InferenceContext | None = None, **kwargs: Any
+        self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
         """We don't know how to resolve a statement by default."""
         # this method is overridden by most concrete classes

@@ -58,7 +58,7 @@ class AstroidError(Exception):
     arguments.
     """
 
-    def __init__(self, message: str = "", **kws: Any) -> None:
+    def __init__(self, message: str = "", **kws) -> None:
         super().__init__(message)
         self.message = message
         for key, value in kws.items():
@@ -85,7 +85,7 @@ class AstroidBuildingError(AstroidError):
         path: str | None = None,
         cls: type | None = None,
         class_repr: str | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.modname = modname
         self.error = error
@@ -114,7 +114,7 @@ class TooManyLevelsError(AstroidImportError):
         "({level}) for module {name!r}",
         level: int | None = None,
         name: str | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.level = level
         self.name = name
@@ -149,7 +149,7 @@ class NoDefault(AstroidError):
         message: str = "{func!r} has no default for {name!r}.",
         func: nodes.FunctionDef | None = None,
         name: str | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.func = func
         self.name = name
@@ -166,7 +166,7 @@ class ResolveError(AstroidError):
     """
 
     def __init__(
-        self, message: str = "", context: InferenceContext | None = None, **kws: Any
+        self, message: str = "", context: InferenceContext | None = None, **kws
     ) -> None:
         self.context = context
         super().__init__(message, **kws)
@@ -187,7 +187,7 @@ class MroError(ResolveError):
         mros: Iterable[Iterable[nodes.ClassDef]],
         cls: nodes.ClassDef,
         context: InferenceContext | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.mros = mros
         self.cls = cls
@@ -215,7 +215,7 @@ class SuperError(ResolveError):
         context: InferenceContext object.
     """
 
-    def __init__(self, message: str, super_: objects.Super, **kws: Any) -> None:
+    def __init__(self, message: str, super_: objects.Super, **kws) -> None:
         self.super_ = super_
         super().__init__(message, **kws)
 
@@ -251,7 +251,7 @@ class InferenceError(ResolveError):  # pylint: disable=too-many-instance-attribu
         unpacked_args: list | None = None,
         keyword_arguments: dict | None = None,
         unpacked_kwargs: dict | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.node = node
         self.context = context
@@ -290,7 +290,7 @@ class NameInferenceError(InferenceError):
         name: str | None = None,
         scope: nodes.LocalsDictNodeNG | None = None,
         context: InferenceContext | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.name = name
         self.scope = scope
@@ -316,7 +316,7 @@ class AttributeInferenceError(ResolveError):
         mros: list[nodes.ClassDef] | None = None,
         super_: nodes.ClassDef | None = None,
         cls: nodes.ClassDef | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.attribute = attribute
         self.target = target
@@ -348,7 +348,7 @@ class AstroidIndexError(AstroidError):
         node: nodes.NodeNG | bases.Instance | None = None,
         index: nodes.Subscript | None = None,
         context: InferenceContext | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.node = node
         self.index = index
@@ -365,7 +365,7 @@ class AstroidTypeError(AstroidError):
         node: nodes.NodeNG | bases.Instance | None = None,
         index: nodes.Subscript | None = None,
         context: InferenceContext | None = None,
-        **kws: Any,
+        **kws,
     ) -> None:
         self.node = node
         self.index = index

@@ -13,7 +13,7 @@ from astroid.exceptions import InferenceError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
-    from typing import Any, Final, Literal
+    from typing import Final
 
     from astroid import bases, nodes
     from astroid.context import InferenceContext
@@ -26,12 +26,12 @@ class UninferableBase:
     This is meant to be used as a singleton. Use astroid.util.Uninferable to access it.
     """
 
-    def __repr__(self) -> Literal["Uninferable"]:
+    def __repr__(self) -> str:
         return "Uninferable"
 
     __str__ = __repr__
 
-    def __getattribute__(self, name: str) -> Any:
+    def __getattribute__(self, name: str):
         if name == "next":
             raise AttributeError("next method should not be called")
         if name.startswith("__") and name.endswith("__"):
@@ -40,10 +40,10 @@ class UninferableBase:
             return object.__getattribute__(self, name)
         return self
 
-    def __call__(self, *args: Any, **kwargs: Any) -> UninferableBase:
+    def __call__(self, *args, **kwargs) -> UninferableBase:
         return self
 
-    def __bool__(self) -> Literal[False]:
+    def __bool__(self) -> bool:
         return False
 
     __nonzero__ = __bool__

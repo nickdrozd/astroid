@@ -14,7 +14,7 @@ from astroid.nodes import NodeNG
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from typing import Any, TypeVar
+    from typing import TypeVar
 
     from astroid.context import InferenceContext
     from astroid.typing import (
@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 
 
 _cache: OrderedDict[
-    tuple[InferFn[Any], NodeNG, InferenceContext | None], list[InferenceResult]
+    tuple[InferFn, NodeNG, InferenceContext | None], list[InferenceResult]
 ] = OrderedDict()
 
-_CURRENTLY_INFERRING: set[tuple[InferFn[Any], NodeNG]] = set()
+_CURRENTLY_INFERRING: set[tuple[InferFn, NodeNG]] = set()
 
 
 def clear_inference_tip_cache() -> None:
@@ -44,7 +44,7 @@ def _inference_tip_cached(func: InferFn[_NodesT]) -> InferFn[_NodesT]:
     def inner(
         node: _NodesT,
         context: InferenceContext | None = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> Generator[InferenceResult]:
 
         if (partial_cache_key := (func, node)) in _CURRENTLY_INFERRING:

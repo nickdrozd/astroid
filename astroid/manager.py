@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 ZIP_IMPORT_EXTS = (".zip", ".egg", ".whl", ".pyz", ".pyzw")
 
 
-def safe_repr(obj: Any) -> str:
+def safe_repr(obj) -> str:
     try:
         return repr(obj)
     except Exception:  # pylint: disable=broad-except
@@ -59,7 +59,7 @@ class AstroidManager:
     """
 
     name = "astroid loader"
-    brain: ClassVar[AstroidManagerBrain] = {
+    brain: AstroidManagerBrain = {  # noqa: RUF012
         "astroid_cache": {},
         "_mod_file_cache": {},
         "_failed_import_hooks": [],

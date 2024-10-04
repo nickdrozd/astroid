@@ -193,7 +193,7 @@ class MultiLineBlockNode(NodeNG):
     Assign nodes, etc.
     """
 
-    _multi_line_block_fields: ClassVar[tuple[str, ...]] = ()
+    _multi_line_block_fields: tuple[str, ...] = ()
 
     @cached_property
     def _multi_line_blocks(self):
@@ -357,7 +357,7 @@ class OperatorNode(NodeNG):
             else:
                 values = None
         elif isinstance(other, nodes.Dict):
-            values: dict[Any, Any] = {}
+            values: dict = {}
             for pair in other.items:
                 key = util.safe_infer(pair[0], context)
                 if not isinstance(key, nodes.Const):

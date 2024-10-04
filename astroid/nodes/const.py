@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Any
 
 
 OP_PRECEDENCE = {
@@ -36,7 +35,7 @@ OP_PRECEDENCE = {
     for op in ops
 }
 
-UNARY_OPERATORS: dict[str, Callable[[Any], Any]] = {
+UNARY_OPERATORS: dict[str, Callable] = {
     "+": operator_mod.pos,
     "-": operator_mod.neg,
     "~": operator_mod.invert,

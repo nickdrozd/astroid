@@ -154,7 +154,7 @@ def for_assigned_stmts(
     node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
-) -> Any:
+):
     if assign_path is None:
         for lst in self.iter.infer(context):
             if isinstance(lst, (nodes.Tuple, nodes.List)):
@@ -234,7 +234,7 @@ def assign_assigned_stmts(
     node: AssignedStmtsPossibleNode = None,
     context: InferenceContext | None = None,
     assign_path: list[int] | None = None,
-) -> Any:
+):
     if not assign_path:
         yield self.value
         return None

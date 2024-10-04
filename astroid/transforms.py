@@ -6,35 +6,8 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, cast, overload
 
 from astroid.context import _invalidate_cache
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import TypeVar
-
-    from astroid import nodes
-    from astroid.typing import SuccessfulInferenceResult, TransformFn
-
-    _SuccessfulInferenceResultT = TypeVar(
-        "_SuccessfulInferenceResultT",
-        bound=SuccessfulInferenceResult,
-    )
-
-    _Predicate = Callable[[_SuccessfulInferenceResultT], bool] | None
-
-    _Vistables = (
-        "nodes.NodeNG" | list["nodes.NodeNG"] | tuple["nodes.NodeNG" | ...] | str | None
-    )
-
-    _VisitReturns = (
-        SuccessfulInferenceResult
-        | list[SuccessfulInferenceResult]
-        | tuple[SuccessfulInferenceResult | ...]
-        | str
-        | None
-    )
 
 
 class TransformVisitor:
@@ -49,19 +22,9 @@ class TransformVisitor:
     """
 
     def __init__(self) -> None:
-        # The typing here is incorrect, but it's the best we can do
-        # Refer to register_transform and unregister_transform for the correct types
-        self.transforms: defaultdict[
-            type[SuccessfulInferenceResult],
-            list[
-                tuple[
-                    TransformFn[SuccessfulInferenceResult],
-                    _Predicate[SuccessfulInferenceResult],
-                ]
-            ],
-        ] = defaultdict(list)
+        self.transforms = defaultdict(list)
 
-    def _transform(self, node: SuccessfulInferenceResult) -> SuccessfulInferenceResult:
+    def _transform(self, node):
         """Call matching transforms for the given node if any and return the
         transformed node.
         """
@@ -79,36 +42,15 @@ class TransformVisitor:
                     break
         return node
 
-    def _visit(self, node: nodes.NodeNG) -> SuccessfulInferenceResult:
+    def _visit(self, node):
         for name in node._astroid_fields:
             value = getattr(node, name)
-            if TYPE_CHECKING:
-                value = cast(_Vistables, value)
 
             if (visited := self._visit_generic(value)) != value:
                 setattr(node, name, visited)
         return self._transform(node)
 
-    @overload
-    def _visit_generic(self, node: None) -> None: ...
-
-    @overload
-    def _visit_generic(self, node: str) -> str: ...
-
-    @overload
-    def _visit_generic(
-        self, node: list[nodes.NodeNG]
-    ) -> list[SuccessfulInferenceResult]: ...
-
-    @overload
-    def _visit_generic(
-        self, node: tuple[nodes.NodeNG, ...]
-    ) -> tuple[SuccessfulInferenceResult, ...]: ...
-
-    @overload
-    def _visit_generic(self, node: nodes.NodeNG) -> SuccessfulInferenceResult: ...
-
-    def _visit_generic(self, node: _Vistables) -> _VisitReturns:
+    def _visit_generic(self, node):
         if not node:
             return node
         if isinstance(node, list):
@@ -133,9 +75,9 @@ class TransformVisitor:
 
     def register_transform(
         self,
-        node_class: type[_SuccessfulInferenceResultT],
-        transform: TransformFn[_SuccessfulInferenceResultT],
-        predicate: _Predicate[_SuccessfulInferenceResultT] | None = None,
+        node_class,
+        transform,
+        predicate=None,
     ) -> None:
         """Register `transform(node)` function to be applied on the given node.
 
@@ -145,18 +87,18 @@ class TransformVisitor:
         The transform function may return a value which is then used to
         substitute the original node in the tree.
         """
-        self.transforms[node_class].append((transform, predicate))  # type: ignore[index, arg-type]
+        self.transforms[node_class].append((transform, predicate))
 
     def unregister_transform(
         self,
-        node_class: type[_SuccessfulInferenceResultT],
-        transform: TransformFn[_SuccessfulInferenceResultT],
-        predicate: _Predicate[_SuccessfulInferenceResultT] | None = None,
+        node_class,
+        transform,
+        predicate=None,
     ) -> None:
         """Unregister the given transform."""
-        self.transforms[node_class].remove((transform, predicate))  # type: ignore[index, arg-type]
+        self.transforms[node_class].remove((transform, predicate))
 
-    def visit(self, node: nodes.NodeNG) -> SuccessfulInferenceResult:
+    def visit(self, node):
         """Walk the given astroid *tree* and transform each encountered node.
 
         Only the nodes which have transforms registered will actually

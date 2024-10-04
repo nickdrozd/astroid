@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from astroid.exceptions import ParentMissingError
 from astroid.filter_statements import _filter_stmts
@@ -15,16 +15,8 @@ from astroid.nodes._base_nodes import LookupMixIn
 from astroid.nodes.scoped_nodes.utils import builtin_lookup
 
 if TYPE_CHECKING:
-    from typing import TypeVar
-
-    from astroid.nodes import (
-        ClassDef,
-        Comprehension,
-        NodeNG,
-    )
+    from astroid.nodes import ClassDef, Comprehension, NodeNG
     from astroid.typing import InferenceResult, SuccessfulInferenceResult
-
-    _T = TypeVar("_T")
 
 
 class LocalsDictNodeNG(LookupMixIn):
@@ -53,7 +45,7 @@ class LocalsDictNodeNG(LookupMixIn):
         except ParentMissingError:
             return self.name
 
-    def scope(self: _T) -> _T:
+    def scope(self):
         """The first parent node defining a new scope.
 
         :returns: The first parent scope node.
@@ -123,12 +115,6 @@ class LocalsDictNodeNG(LookupMixIn):
         # to spend development time on it.
         self.body.append(child)  # type: ignore[attr-defined]
         child.parent = self
-
-    @overload
-    def add_local_node(self, child_node: ClassDef, name: str | None = ...) -> None: ...
-
-    @overload
-    def add_local_node(self, child_node: NodeNG, name: str) -> None: ...
 
     def add_local_node(self, child_node: NodeNG, name: str | None = None) -> None:
         """Append a child that should alter the locals of this scope node.

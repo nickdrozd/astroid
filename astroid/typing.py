@@ -65,7 +65,7 @@ class InferFn(Protocol, Generic[_SuccessfulInferenceResultT_contra]):
         self,
         node: _SuccessfulInferenceResultT_contra,
         context: InferenceContext | None = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> Iterator[InferenceResult]: ...  # pragma: no cover
 
 
