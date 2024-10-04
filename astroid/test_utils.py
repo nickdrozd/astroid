@@ -6,10 +6,8 @@
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import sys
-import warnings
 from typing import TYPE_CHECKING
 
 import pytest
@@ -54,17 +52,6 @@ def require_version(minver: str = "0.0.0", maxver: str = "4.0.0") -> Callable:
 
 def get_name_node(start_from, name, index=0):
     return [n for n in start_from.nodes_of_class(nodes.Name) if n.name == name][index]
-
-
-@contextlib.contextmanager
-def enable_warning(warning):
-    warnings.simplefilter("always", warning)
-    try:
-        yield
-    finally:
-        # Reset it to default value, so it will take
-        # into account the values from the -W flag.
-        warnings.simplefilter("default", warning)
 
 
 def brainless_manager():

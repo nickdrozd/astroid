@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import pprint
-import warnings
 from functools import cached_property
 from functools import singledispatch as _singledispatch
 from typing import (
@@ -281,26 +280,18 @@ class NodeNG:
         """
         return any(self is parent for parent in node.node_ancestors())
 
-    def statement(self, *, future: Literal[None, True] = None) -> Statement:
+    def statement(self) -> Statement:
         """The first parent node, including self, marked as statement node.
 
         :raises StatementMissing: If self has no parent attribute.
         """
-        if future is not None:
-            warnings.warn(
-                "The future arg will be removed in astroid 4.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         if self.is_statement:
             return cast("Statement", self)
         if not self.parent:
             raise StatementMissing(target=self)
         return self.parent.statement()
 
-    def frame(
-        self, *, future: Literal[None, True] = None
-    ) -> FunctionDef | Module | ClassDef | Lambda:
+    def frame(self) -> FunctionDef | Module | ClassDef | Lambda:
         """The first parent frame node.
 
         A frame node is a :class:`Module`, :class:`FunctionDef`,
@@ -309,15 +300,9 @@ class NodeNG:
         :returns: The first parent frame node.
         :raises ParentMissingError: If self has no parent attribute.
         """
-        if future is not None:
-            warnings.warn(
-                "The future arg will be removed in astroid 4.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         if self.parent is None:
             raise ParentMissingError(target=self)
-        return self.parent.frame(future=future)
+        return self.parent.frame()
 
     def scope(self) -> LocalsDictNodeNG:
         """The first parent node defining a new scope.

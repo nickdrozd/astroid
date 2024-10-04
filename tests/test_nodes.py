@@ -617,16 +617,11 @@ class ConstNodeTest(unittest.TestCase):
         self.assertTrue(node._proxied.parent)
         self.assertEqual(node._proxied.root().name, value.__class__.__module__)
         with self.assertRaises(StatementMissing):
-            with pytest.warns(DeprecationWarning) as records:
-                node.statement(future=True)
-                assert len(records) == 1
+            node.statement()
         with self.assertRaises(StatementMissing):
             node.statement()
-
         with self.assertRaises(ParentMissingError):
-            with pytest.warns(DeprecationWarning) as records:
-                node.frame(future=True)
-                assert len(records) == 1
+            node.frame()
         with self.assertRaises(ParentMissingError):
             node.frame()
 

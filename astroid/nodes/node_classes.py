@@ -1119,12 +1119,6 @@ class Arguments(AssignTypeNode):  # pylint: disable=too-many-instance-attributes
         :returns: The index and node for the argument.
         :rtype: tuple(str or None, AssignName or None)
         """
-        if rec != DEPRECATED_ARGUMENT_DEFAULT:  # pragma: no cover
-            warnings.warn(
-                "The rec argument will be removed in astroid 3.1.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         if self.arguments:
             index, argument = _find_arg(argname, self.arguments)
             if argument:
@@ -5464,9 +5458,7 @@ class NamedExpr(AssignTypeNode):
 
         yield from self.value.infer(context=context)
 
-    def frame(
-        self, *, future: Literal[None, True] = None
-    ) -> FunctionDef | Module | ClassDef | Lambda:
+    def frame(self) -> FunctionDef | Module | ClassDef | Lambda:
         """The first parent frame node.
 
         A frame node is a :class:`Module`, :class:`FunctionDef`,
@@ -5474,12 +5466,6 @@ class NamedExpr(AssignTypeNode):
 
         :returns: The first parent frame node.
         """
-        if future is not None:
-            warnings.warn(
-                "The future arg will be removed in astroid 4.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         if not self.parent:
             raise ParentMissingError(target=self)
 

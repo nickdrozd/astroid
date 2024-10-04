@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import contextlib
 import sys
-import warnings
 from typing import TYPE_CHECKING
 
 from astroid.exceptions import InferenceError
@@ -117,26 +116,7 @@ def _instancecheck(cls, other) -> bool:
     wrapped = cls.__wrapped__
     other_cls = other.__class__
     is_instance_of = wrapped is other_cls or issubclass(other_cls, wrapped)
-    warnings.warn(
-        "%r is deprecated and slated for removal in astroid "
-        "2.0, use %r instead" % (cls.__class__.__name__, wrapped.__name__),
-        PendingDeprecationWarning,
-        stacklevel=2,
-    )
     return is_instance_of
-
-
-def check_warnings_filter() -> bool:
-    """Return True if any other than the default DeprecationWarning filter is enabled.
-
-    https://docs.python.org/3/library/warnings.html#default-warning-filter
-    """
-    return any(
-        issubclass(DeprecationWarning, filter[2])
-        and filter[0] != "ignore"
-        and filter[3] != "__main__"
-        for filter in warnings.filters
-    )
 
 
 def safe_infer(
