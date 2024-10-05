@@ -402,12 +402,7 @@ def _build_from_function(
     module: types.ModuleType,
 ) -> nodes.FunctionDef | nodes.EmptyNode:
     # verify this is not an imported function
-    try:
-        code = member.__code__  # type: ignore[union-attr]
-    except AttributeError:
-        # Some implementations don't provide the code object,
-        # such as Jython.
-        code = None
+    code = member.__code__
     filename = getattr(code, "co_filename", None)
     if filename is None:
         return object_build_methoddescriptor(node, member)
@@ -454,11 +449,7 @@ class InspectBuilder:
         self._module = module
         if modname is None:
             modname = module.__name__
-        try:
-            node = build_module(modname, module.__doc__)
-        except AttributeError:
-            # in jython, java modules have no __doc__ (see #109562)
-            node = build_module(modname)
+        node = build_module(modname, module.__doc__)
         if path is None:
             node.path = node.file = path
         else:
@@ -518,10 +509,6 @@ class InspectBuilder:
                 if alias in node.special_attributes:
                     continue
                 child = nodes.const_factory(member)
-            elif inspect.isroutine(member):
-                # This should be called for Jython, where some builtin
-                # methods aren't caught by isbuiltin branch.
-                child = _build_from_function(node, member, self._module)
             elif _safe_has_attribute(member, "__all__"):
                 child: nodes.NodeNG = build_module(alias)
                 # recursion

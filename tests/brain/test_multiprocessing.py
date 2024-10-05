@@ -19,12 +19,6 @@ except ImportError:
     HAS_MULTIPROCESSING = False
 
 
-@unittest.skipUnless(
-    HAS_MULTIPROCESSING,
-    "multiprocesing is required for this test, but "
-    "on some platforms it is missing "
-    "(Jython for instance)",
-)
 class MultiprocessingBrainTest(unittest.TestCase):
     def test_multiprocessing_module_attributes(self) -> None:
         # Test that module attributes are working,

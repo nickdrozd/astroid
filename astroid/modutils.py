@@ -29,7 +29,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from astroid.const import IS_JYTHON, PY310_PLUS
+from astroid.const import PY310_PLUS
 from astroid.interpreter._import import spec, util
 
 if TYPE_CHECKING:
@@ -122,9 +122,7 @@ def _normalize_path(path: str) -> str:
     return os.path.normcase(os.path.realpath(path))
 
 
-def _path_from_filename(filename: str, is_jython: bool = IS_JYTHON) -> str:
-    if not is_jython:
-        return filename
+def _path_from_filename(filename: str) -> str:
     head, has_pyclass, _ = filename.partition("$py.class")
     if has_pyclass:
         return head + ".py"
