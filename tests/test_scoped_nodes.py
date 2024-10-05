@@ -29,7 +29,6 @@ from astroid import (
     util,
 )
 from astroid.bases import BoundMethod, Generator, Instance, UnboundMethod
-from astroid.const import WIN32
 from astroid.exceptions import (
     AstroidBuildingError,
     AttributeInferenceError,
@@ -251,7 +250,7 @@ class ModuleNodeTest(ModuleLoader, unittest.TestCase):
         "astroid.nodes.scoped_nodes.scoped_nodes.AstroidManager.ast_from_module_name"
     )
     def test_import_unavailable_module(self, mock) -> None:
-        unavailable_modname = "posixpath" if WIN32 else "ntpath"
+        unavailable_modname = "posixpath" if sys.platform == "win32" else "ntpath"
         module = builder.parse(f"import {unavailable_modname}")
         mock.side_effect = AstroidBuildingError
 

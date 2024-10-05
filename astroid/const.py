@@ -9,7 +9,5 @@ PY311_PLUS = sys.version_info >= (3, 11)
 PY312_PLUS = sys.version_info >= (3, 12)
 PY313_PLUS = sys.version_info >= (3, 13)
 
-WIN32 = sys.platform == "win32"
-
 IS_PYPY = sys.implementation.name == "pypy"
 IS_JYTHON = sys.implementation.name == "jython"
