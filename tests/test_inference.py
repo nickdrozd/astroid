@@ -26,7 +26,6 @@ from astroid import (
     manager,
     nodes,
     objects,
-    test_utils,
     util,
 )
 from astroid import decorators as decoratorsmod
@@ -42,6 +41,7 @@ from astroid.exceptions import (
     NotFoundError,
 )
 from astroid.objects import ExceptionInstance
+from tests import utils as test_utils
 
 from . import resources
 

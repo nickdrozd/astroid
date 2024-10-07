@@ -12,7 +12,7 @@ import unittest
 import pytest
 
 import astroid
-from astroid import MANAGER, builder, nodes, objects, test_utils, util
+from astroid import MANAGER, builder, nodes, objects, util
 from astroid.bases import Instance
 from astroid.brain.brain_namedtuple_enum import _get_namedtuple_fields
 from astroid.const import PY312_PLUS, PY313_PLUS
@@ -23,6 +23,7 @@ from astroid.exceptions import (
 )
 from astroid.nodes.node_classes import Const
 from astroid.nodes.scoped_nodes import ClassDef
+from tests import utils as test_utils
 
 
 def assertEqualMro(klass: ClassDef, expected_mro: list[str]) -> None:

@@ -18,7 +18,7 @@ import unittest.mock
 
 import pytest
 
-from astroid import Instance, builder, nodes, test_utils, util
+from astroid import Instance, builder, nodes, util
 from astroid.exceptions import (
     AstroidBuildingError,
     AstroidSyntaxError,
@@ -27,6 +27,7 @@ from astroid.exceptions import (
     StatementMissing,
 )
 from astroid.nodes.scoped_nodes import Module
+from tests import utils as test_utils
 
 from . import resources
 

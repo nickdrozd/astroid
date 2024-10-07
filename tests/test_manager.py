@@ -15,7 +15,7 @@ from unittest import mock
 import pytest
 
 import astroid
-from astroid import manager, test_utils
+from astroid import manager
 from astroid.const import PY312_PLUS
 from astroid.exceptions import (
     AstroidBuildingError,
@@ -26,6 +26,7 @@ from astroid.interpreter._import import util
 from astroid.modutils import EXT_LIB_DIRS, module_in_path
 from astroid.nodes import Const
 from astroid.nodes.scoped_nodes import ClassDef, Module
+from tests import utils as test_utils
 
 from . import resources
 

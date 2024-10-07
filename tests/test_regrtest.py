@@ -9,13 +9,14 @@ from unittest import mock
 
 import pytest
 
-from astroid import MANAGER, Instance, bases, manager, nodes, parse, test_utils
+from astroid import MANAGER, Instance, bases, manager, nodes, parse
 from astroid.builder import AstroidBuilder, _extract_single_node, extract_node
 from astroid.const import PY312_PLUS
 from astroid.context import InferenceContext
 from astroid.exceptions import InferenceError
 from astroid.raw_building import build_module
 from astroid.util import Uninferable
+from tests import utils as test_utils
 
 from . import resources
 
