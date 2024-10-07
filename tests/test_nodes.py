@@ -29,7 +29,7 @@ from astroid import (
     util,
 )
 from astroid._ast import Context
-from astroid.const import IS_PYPY, PY310_PLUS, PY312_PLUS
+from astroid.const import PY310_PLUS, PY312_PLUS
 from astroid.context import InferenceContext
 from astroid.exceptions import (
     AstroidBuildingError,
@@ -282,11 +282,6 @@ everything = f""" " \' \r \t \\ {{ }} {'x' + x!r:a} {["'"]!s:{a}}"""
         assert nodes.Unknown(lineno=1, col_offset=0).as_string() == "Unknown.Unknown()"
 
     @staticmethod
-    @pytest.mark.skipif(
-        IS_PYPY,
-        reason="Test requires manipulating the recursion limit, which cannot "
-        "be undone in a finally block without polluting other tests on PyPy.",
-    )
     def test_recursion_error_trapped() -> None:
         with pytest.warns(UserWarning, match="unable to transform"):
             ast = abuilder.string_build(LONG_CHAINED_METHOD_CALL)

@@ -24,7 +24,7 @@ import pytest
 import tests.testdata.python3.data.fake_module_with_broken_getattr as fm_getattr
 import tests.testdata.python3.data.fake_module_with_warnings as fm
 from astroid.builder import AstroidBuilder
-from astroid.const import IS_PYPY, PY312_PLUS
+from astroid.const import PY312_PLUS
 from astroid.raw_building import (
     attach_dummy_node,
     build_class,
@@ -86,7 +86,6 @@ class RawBuildingTC(unittest.TestCase):
         node = build_from_import("astroid", names)
         self.assertEqual(len(names), len(node.names))
 
-    @unittest.skipIf(IS_PYPY, "Only affects CPython")
     def test_io_is__io(self):
         # _io module calls itself io before Python 3.12. This leads
         # to cyclic dependencies when astroid tries to resolve

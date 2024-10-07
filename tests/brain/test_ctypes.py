@@ -2,17 +2,9 @@
 # For details: https://github.com/pylint-dev/astroid/blob/main/LICENSE
 # Copyright (c) https://github.com/pylint-dev/astroid/blob/main/CONTRIBUTORS.txt
 
-import sys
-
 import pytest
 
 from astroid import extract_node, nodes
-
-pytestmark = pytest.mark.skipif(
-    hasattr(sys, "pypy_version_info"),
-    reason="pypy has its own implementation of _ctypes module which is different "
-    "from the one of cpython",
-)
 
 
 # The parameters of the test define a mapping between the ctypes redefined types

@@ -10,8 +10,6 @@ from functools import lru_cache
 from importlib.util import _find_spec_from_path  # type: ignore[attr-defined]
 from typing import TYPE_CHECKING
 
-from astroid.const import IS_PYPY
-
 if TYPE_CHECKING:
     from importlib._bootstrap_external import _NamespacePath
 
@@ -67,7 +65,6 @@ def is_namespace(modname: str) -> bool:
                     mod.__spec__ is None
                     and getattr(mod, "__file__", None) is None
                     and hasattr(mod, "__path__")
-                    and not IS_PYPY
                 )
             except KeyError:
                 return False

@@ -12,7 +12,6 @@ among float, int, bytes or str.
 """
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 from astroid.brain.util import register_module_extender
@@ -86,6 +85,4 @@ class {c_type}(_SimpleCData):
 
 
 def register(manager: AstroidManager) -> None:
-    if not hasattr(sys, "pypy_version_info"):
-        # No need of this module in pypy where everything is written in python
-        register_module_extender(manager, "ctypes", enrich_ctypes_redefined_types)
+    register_module_extender(manager, "ctypes", enrich_ctypes_redefined_types)

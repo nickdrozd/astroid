@@ -19,7 +19,6 @@ import unittest.mock
 import pytest
 
 from astroid import Instance, builder, nodes, test_utils, util
-from astroid.const import IS_PYPY
 from astroid.exceptions import (
     AstroidBuildingError,
     AstroidSyntaxError,
@@ -55,12 +54,8 @@ class FromToLineNoTest(unittest.TestCase):
         self.assertEqual(name.tolineno, 4)
         strarg = callfunc.args[0]
         self.assertIsInstance(strarg, nodes.Const)
-        if IS_PYPY:
-            self.assertEqual(strarg.fromlineno, 4)
-            self.assertEqual(strarg.tolineno, 5)
-        else:
-            self.assertEqual(strarg.fromlineno, 4)
-            self.assertEqual(strarg.tolineno, 5)
+        self.assertEqual(strarg.fromlineno, 4)
+        self.assertEqual(strarg.tolineno, 5)
         namearg = callfunc.args[1]
         self.assertIsInstance(namearg, nodes.Name)
         self.assertEqual(namearg.fromlineno, 5)

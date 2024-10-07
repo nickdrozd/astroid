@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import queue
-import sys
 import unittest
 
 import astroid
@@ -98,10 +97,8 @@ class MultiprocessingBrainTest(unittest.TestCase):
             obj = next(module[attr].infer())
             self.assertEqual(obj.qname(), f"builtins.{attr}")
 
-        # pypy's implementation of array.__spec__ return None. This causes problems for this inference.
-        if not hasattr(sys, "pypy_version_info"):
-            array = next(module["array"].infer())
-            self.assertEqual(array.qname(), "array.array")
+        array = next(module["array"].infer())
+        self.assertEqual(array.qname(), "array.array")
 
         manager = next(module["manager"].infer())
         # Verify that we have these attributes

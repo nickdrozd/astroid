@@ -20,7 +20,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from typing import TYPE_CHECKING
 
 from astroid import bases, nodes
-from astroid.const import IS_PYPY
 from astroid.manager import AstroidManager
 from astroid.nodes import node_classes
 
@@ -472,9 +471,6 @@ class InspectBuilder:
             return None
         self._done[obj] = node
         for alias in dir(obj):
-            # inspect.ismethod() and inspect.isbuiltin() in PyPy return
-            # the opposite of what they do in CPython for __class_getitem__.
-            pypy__class_getitem__ = IS_PYPY and alias == "__class_getitem__"
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -483,11 +479,11 @@ class InspectBuilder:
                 # damned ExtensionClass.Base, I know you're there !
                 attach_dummy_node(node, alias)
                 continue
-            if inspect.ismethod(member) and not pypy__class_getitem__:
+            if inspect.ismethod(member):
                 member = member.__func__
             if inspect.isfunction(member):
                 child = _build_from_function(node, member, self._module)
-            elif inspect.isbuiltin(member) or pypy__class_getitem__:
+            elif inspect.isbuiltin(member):
                 if self.imported_member(node, member, alias):
                     continue
                 child = object_build_methoddescriptor(node, member)
