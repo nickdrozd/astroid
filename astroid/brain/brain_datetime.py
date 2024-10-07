@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import register_module_extender
 from astroid.builder import AstroidBuilder
 from astroid.const import PY312_PLUS
 from astroid.manager import AstroidManager

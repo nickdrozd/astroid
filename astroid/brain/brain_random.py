@@ -7,8 +7,8 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
+from astroid.brain.util import inference_tip
 from astroid.exceptions import UseInferenceDefault
-from astroid.inference_tip import inference_tip
 from astroid.nodes.node_classes import (
     Attribute,
     Call,

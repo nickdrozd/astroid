@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid.brain.brain_numpy_utils import numpy_supports_type_hints
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import register_module_extender
 from astroid.builder import parse
 
 if TYPE_CHECKING:

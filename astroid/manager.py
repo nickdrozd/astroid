@@ -462,8 +462,7 @@ class AstroidManager:
         """
         # import here because of cyclic imports
         # pylint: disable=import-outside-toplevel
-        from astroid.brain.helpers import register_all_brains
-        from astroid.inference_tip import clear_inference_tip_cache
+        from astroid.brain.util import clear_inference_tip_cache
         from astroid.interpreter._import.spec import _find_spec
         from astroid.interpreter.objectmodel import ObjectModel
         from astroid.nodes._base_nodes import LookupMixIn
@@ -493,4 +492,11 @@ class AstroidManager:
         self.bootstrap()
 
         # Reload brain plugins. During initialisation this is done in astroid.manager.py
-        register_all_brains(self)
+        self.register_all_brains()
+
+    def register_all_brains(self) -> None:
+        # pylint: disable=import-outside-toplevel
+        import astroid.brain as brain_mod
+
+        for mod in brain_mod.__all__:
+            mod.register(self)

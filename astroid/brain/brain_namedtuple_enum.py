@@ -12,6 +12,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 from astroid import arguments, nodes, util
+from astroid.brain.util import inference_tip
 from astroid.builder import AstroidBuilder, _extract_single_node, extract_node
 from astroid.context import InferenceContext
 from astroid.exceptions import (
@@ -20,7 +21,6 @@ from astroid.exceptions import (
     InferenceError,
     UseInferenceDefault,
 )
-from astroid.inference_tip import inference_tip
 from astroid.manager import AstroidManager
 
 if TYPE_CHECKING:

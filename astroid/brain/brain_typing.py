@@ -11,7 +11,7 @@ import typing
 from functools import partial
 from typing import TYPE_CHECKING
 
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import inference_tip, register_module_extender
 from astroid.builder import AstroidBuilder, _extract_single_node, extract_node
 from astroid.const import PY312_PLUS, PY313_PLUS
 from astroid.exceptions import (
@@ -20,7 +20,6 @@ from astroid.exceptions import (
     InferenceError,
     UseInferenceDefault,
 )
-from astroid.inference_tip import inference_tip
 from astroid.manager import AstroidManager
 from astroid.nodes.node_classes import (
     Assign,

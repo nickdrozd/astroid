@@ -42,7 +42,7 @@ from astroid.nodes import node_classes, scoped_nodes
 from astroid import raw_building
 from astroid.__pkginfo__ import __version__, version
 from astroid.bases import BaseInstance, BoundMethod, Instance, UnboundMethod
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import _inference_tip_cached, inference_tip
 from astroid.builder import extract_node, parse
 from astroid.const import PY310_PLUS, Context
 from astroid.exceptions import (
@@ -71,7 +71,6 @@ from astroid.exceptions import (
     UnresolvableName,
     UseInferenceDefault,
 )
-from astroid.inference_tip import _inference_tip_cached, inference_tip
 from astroid.objects import ExceptionInstance
 
 # isort: off

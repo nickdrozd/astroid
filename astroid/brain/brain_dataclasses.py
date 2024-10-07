@@ -17,10 +17,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid import bases, nodes
+from astroid.brain.util import inference_tip
 from astroid.builder import parse
 from astroid.const import PY310_PLUS, PY313_PLUS
 from astroid.exceptions import AstroidSyntaxError, InferenceError, UseInferenceDefault
-from astroid.inference_tip import inference_tip
 from astroid.manager import AstroidManager
 from astroid.util import Uninferable, UninferableBase, safe_infer
 

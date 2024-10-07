@@ -25,9 +25,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid import nodes
+from astroid.brain.util import inference_tip
 from astroid.builder import extract_node
 from astroid.exceptions import UseInferenceDefault
-from astroid.inference_tip import inference_tip
 
 if TYPE_CHECKING:
     from astroid.context import InferenceContext

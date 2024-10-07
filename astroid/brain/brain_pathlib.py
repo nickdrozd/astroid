@@ -7,10 +7,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid import bases, nodes
+from astroid.brain.util import inference_tip
 from astroid.builder import _extract_single_node
 from astroid.const import PY313_PLUS
 from astroid.exceptions import InferenceError, UseInferenceDefault
-from astroid.inference_tip import inference_tip
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

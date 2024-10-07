@@ -7,10 +7,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid import nodes
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import inference_tip, register_module_extender
 from astroid.builder import _extract_single_node, parse
 from astroid.const import PY311_PLUS
-from astroid.inference_tip import inference_tip
 
 if TYPE_CHECKING:
     from astroid import context

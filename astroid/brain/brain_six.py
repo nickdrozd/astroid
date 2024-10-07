@@ -7,7 +7,7 @@
 from textwrap import dedent
 
 from astroid import nodes
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import register_module_extender
 from astroid.builder import AstroidBuilder
 from astroid.exceptions import (
     AstroidBuildingError,

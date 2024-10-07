@@ -11,9 +11,9 @@ from itertools import chain
 from typing import TYPE_CHECKING
 
 from astroid import BoundMethod, arguments, objects
+from astroid.brain.util import inference_tip
 from astroid.builder import extract_node
 from astroid.exceptions import InferenceError, UseInferenceDefault
-from astroid.inference_tip import inference_tip
 from astroid.interpreter import objectmodel
 from astroid.nodes.node_classes import AssignName, Attribute, Call, Name
 from astroid.nodes.scoped_nodes import FunctionDef

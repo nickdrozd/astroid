@@ -12,6 +12,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from astroid import arguments, helpers, nodes, objects, util
+from astroid.brain.util import inference_tip
 from astroid.builder import AstroidBuilder
 from astroid.exceptions import (
     AstroidTypeError,
@@ -20,7 +21,6 @@ from astroid.exceptions import (
     MroError,
     UseInferenceDefault,
 )
-from astroid.inference_tip import inference_tip
 from astroid.manager import AstroidManager
 from astroid.nodes import scoped_nodes
 from astroid.raw_building import build_module

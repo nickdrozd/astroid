@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid.bases import BoundMethod
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import register_module_extender
 from astroid.builder import parse
 from astroid.exceptions import InferenceError
 from astroid.nodes.scoped_nodes import FunctionDef

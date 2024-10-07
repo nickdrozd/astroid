@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from astroid.brain.brain_numpy_utils import numpy_supports_type_hints
+from astroid.brain.util import inference_tip
 from astroid.builder import extract_node
-from astroid.inference_tip import inference_tip
 from astroid.nodes.node_classes import Attribute
 
 if TYPE_CHECKING:

@@ -13,9 +13,8 @@ from astroid.brain.brain_numpy_utils import (
     attribute_name_looks_like_numpy_member,
     infer_numpy_attribute,
 )
-from astroid.brain.helpers import register_module_extender
+from astroid.brain.util import inference_tip, register_module_extender
 from astroid.builder import parse
-from astroid.inference_tip import inference_tip
 from astroid.nodes.node_classes import Attribute
 
 if TYPE_CHECKING:
