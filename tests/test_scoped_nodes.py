@@ -41,7 +41,7 @@ from astroid.exceptions import (
     ResolveError,
     TooManyLevelsError,
 )
-from astroid.nodes.scoped_nodes.scoped_nodes import _is_metaclass
+from astroid.nodes.scoped_nodes import _is_metaclass
 
 from . import resources
 
@@ -247,7 +247,7 @@ class ModuleNodeTest(ModuleLoader, unittest.TestCase):
             del sys.path[0]
 
     @patch(
-        "astroid.nodes.scoped_nodes.scoped_nodes.AstroidManager.ast_from_module_name"
+        "astroid.nodes.scoped_nodes.AstroidManager.ast_from_module_name"
     )
     def test_import_unavailable_module(self, mock) -> None:
         unavailable_modname = "posixpath" if sys.platform == "win32" else "ntpath"
