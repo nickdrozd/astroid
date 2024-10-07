@@ -16,8 +16,8 @@ from tokenize import generate_tokens
 from typing import TYPE_CHECKING, cast, overload
 
 from astroid import nodes
-from astroid._ast import get_parser_module, parse_function_type_comment
-from astroid.const import PY312_PLUS, Context
+from astroid._ast import Context, get_parser_module, parse_function_type_comment
+from astroid.const import PY312_PLUS
 from astroid.nodes.node_classes import AssignName
 from astroid.nodes.utils import Position
 

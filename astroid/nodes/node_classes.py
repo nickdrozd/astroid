@@ -15,6 +15,7 @@ from collections import deque
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from astroid._ast import Context
 from astroid.bases import (
     BoundMethod,
     Instance,
@@ -23,7 +24,6 @@ from astroid.bases import (
 from astroid.bases import (
     Generator as bGenerator,
 )
-from astroid.const import Context
 from astroid.context import CallContext, InferenceContext, copy_context
 from astroid.decorators import (
     path_wrapper,

@@ -5,9 +5,14 @@
 from __future__ import annotations
 
 import ast
+import enum
 from typing import NamedTuple
 
-from astroid.const import Context
+
+class Context(enum.Enum):
+    Load = 1
+    Store = 2
+    Del = 3
 
 
 class FunctionType(NamedTuple):

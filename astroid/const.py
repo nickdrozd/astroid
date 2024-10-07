@@ -2,7 +2,6 @@
 # For details: https://github.com/pylint-dev/astroid/blob/main/LICENSE
 # Copyright (c) https://github.com/pylint-dev/astroid/blob/main/CONTRIBUTORS.txt
 
-import enum
 import sys
 
 PY310_PLUS = sys.version_info >= (3, 10)
@@ -14,9 +13,3 @@ WIN32 = sys.platform == "win32"
 
 IS_PYPY = sys.implementation.name == "pypy"
 IS_JYTHON = sys.implementation.name == "jython"
-
-
-class Context(enum.Enum):
-    Load = 1
-    Store = 2
-    Del = 3

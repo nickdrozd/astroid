@@ -41,10 +41,11 @@ from astroid.nodes import node_classes, scoped_nodes
 
 from astroid import raw_building
 from astroid.__pkginfo__ import __version__, version
+from astroid._ast import Context
 from astroid.bases import BaseInstance, BoundMethod, Instance, UnboundMethod
 from astroid.brain.util import _inference_tip_cached, inference_tip
 from astroid.builder import extract_node, parse
-from astroid.const import PY310_PLUS, Context
+from astroid.const import PY310_PLUS
 from astroid.exceptions import (
     AstroidBuildingError,
     AstroidError,
