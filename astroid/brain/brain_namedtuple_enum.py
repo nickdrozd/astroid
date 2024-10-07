@@ -11,7 +11,7 @@ import keyword
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from astroid import arguments, nodes, util
+from astroid import nodes, util
 from astroid.brain.util import inference_tip
 from astroid.builder import AstroidBuilder, _extract_single_node, extract_node
 from astroid.context import InferenceContext
@@ -202,7 +202,7 @@ def infer_named_tuple(
         node, tuple_base, parent=AstroidManager().synthetic_root, context=context
     )
 
-    call_site = arguments.CallSite.from_call(node, context=context)
+    call_site = nodes.CallSite.from_call(node, context=context)
     func = util.safe_infer(
         _extract_single_node("import collections; collections.namedtuple")
     )

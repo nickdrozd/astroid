@@ -1914,7 +1914,7 @@ class TestFunctoolsPartial:
         expected_args = [1, 2, 3, 4]
         expected_keywords = {"e": 6}
 
-        call_site = astroid.arguments.CallSite.from_call(ast_node)
+        call_site = astroid.nodes.CallSite.from_call(ast_node)
         called_func = next(ast_node.func.infer())
         called_args = called_func.filled_args + call_site.positional_arguments
         called_keywords = {**called_func.filled_keywords, **call_site.keyword_arguments}

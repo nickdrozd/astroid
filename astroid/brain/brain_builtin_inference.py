@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from functools import partial
 from typing import TYPE_CHECKING
 
-from astroid import arguments, helpers, nodes, objects, util
+from astroid import helpers, nodes, objects, util
 from astroid.brain.util import inference_tip
 from astroid.builder import AstroidBuilder
 from astroid.exceptions import (
@@ -405,7 +405,7 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
 
     If a case can't be inferred, we'll fallback to default inference.
     """
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     if call.has_invalid_arguments() or call.has_invalid_keywords():
         raise UseInferenceDefault
 
@@ -742,7 +742,7 @@ def infer_issubclass(callnode, context: InferenceContext | None = None):
     :rtype nodes.Const: Boolean Const value of the `issubclass` call
     :raises UseInferenceDefault: If the node cannot be inferred
     """
-    call = arguments.CallSite.from_call(callnode, context=context)
+    call = nodes.CallSite.from_call(callnode, context=context)
     if call.keyword_arguments:
         # issubclass doesn't support keyword arguments
         raise UseInferenceDefault("TypeError: issubclass() takes no keyword arguments")
@@ -785,7 +785,7 @@ def infer_isinstance(
     :param nodes.Call callnode: an isinstance call
     :raises UseInferenceDefault: If the node cannot be inferred
     """
-    call = arguments.CallSite.from_call(callnode, context=context)
+    call = nodes.CallSite.from_call(callnode, context=context)
     if call.keyword_arguments:
         # isinstance doesn't support keyword arguments
         raise UseInferenceDefault("TypeError: isinstance() takes no keyword arguments")
@@ -845,7 +845,7 @@ def infer_len(node, context: InferenceContext | None = None) -> nodes.Const:
     :param context.InferenceContext: node context
     :rtype nodes.Const: a Const node with the inferred length, if possible
     """
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     if call.keyword_arguments:
         raise UseInferenceDefault("TypeError: len() must take no keyword arguments")
     if len(call.positional_arguments) != 1:
@@ -868,7 +868,7 @@ def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
     :param context.InferenceContext: node context
     :rtype nodes.Const: a Const containing an empty string
     """
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     if call.keyword_arguments:
         raise UseInferenceDefault("TypeError: str() must take no keyword arguments")
     try:
@@ -884,7 +884,7 @@ def infer_int(node, context: InferenceContext | None = None):
     :param context.InferenceContext: node context
     :rtype nodes.Const: a Const containing the integer value of the int() call
     """
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     if call.keyword_arguments:
         raise UseInferenceDefault("TypeError: int() must take no keyword arguments")
 
@@ -931,7 +931,7 @@ def infer_dict_fromkeys(node, context: InferenceContext | None = None):
         new_node.postinit(elements)
         return new_node
 
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     if call.keyword_arguments:
         raise UseInferenceDefault("TypeError: int() must take no keyword arguments")
     if len(call.positional_arguments) not in {1, 2}:
@@ -1014,7 +1014,7 @@ def _infer_str_format_call(
     node: nodes.Call, context: InferenceContext | None = None, **kwargs
 ) -> Iterator[ConstFactoryResult | util.UninferableBase]:
     """Return a Const node based on the template and passed arguments."""
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
     assert isinstance(node.func, (nodes.Attribute, nodes.AssignAttr, nodes.DelAttr))
 
     value: nodes.Const

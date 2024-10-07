@@ -23,7 +23,6 @@ from astroid import (
     Const,
     Slice,
     Uninferable,
-    arguments,
     manager,
     nodes,
     objects,
@@ -31,7 +30,6 @@ from astroid import (
     util,
 )
 from astroid import decorators as decoratorsmod
-from astroid.arguments import CallSite
 from astroid.bases import BoundMethod, Generator, Instance, UnboundMethod, UnionType
 from astroid.builder import AstroidBuilder, _extract_single_node, extract_node, parse
 from astroid.const import IS_PYPY, PY310_PLUS, PY312_PLUS
@@ -5407,8 +5405,8 @@ class SliceTest(unittest.TestCase):
 
 class CallSiteTest(unittest.TestCase):
     @staticmethod
-    def _call_site_from_call(call: nodes.Call) -> CallSite:
-        return arguments.CallSite.from_call(call)
+    def _call_site_from_call(call: nodes.Call) -> nodes.CallSite:
+        return nodes.CallSite.from_call(call)
 
     def _test_call_site_pair(
         self, code: str, expected_args: list[int], expected_keywords: dict[str, int]

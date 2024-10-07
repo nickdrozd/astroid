@@ -10,7 +10,7 @@ from functools import partial
 from itertools import chain
 from typing import TYPE_CHECKING
 
-from astroid import BoundMethod, arguments, objects
+from astroid import BoundMethod, nodes, objects
 from astroid.brain.util import inference_tip
 from astroid.builder import extract_node
 from astroid.exceptions import InferenceError, UseInferenceDefault
@@ -22,7 +22,6 @@ from astroid.util import UninferableBase, safe_infer
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from astroid import nodes
     from astroid.context import InferenceContext
     from astroid.manager import AstroidManager
     from astroid.typing import InferenceResult, SuccessfulInferenceResult
@@ -82,7 +81,7 @@ def _transform_lru_cache(node, context: InferenceContext | None = None) -> None:
 def _functools_partial_inference(
     node: nodes.Call, context: InferenceContext | None = None
 ) -> Iterator[objects.PartialFunction]:
-    call = arguments.CallSite.from_call(node, context=context)
+    call = nodes.CallSite.from_call(node, context=context)
 
     if (number_of_positional := len(call.positional_arguments)) < 1:
         raise UseInferenceDefault("functools.partial takes at least one argument")

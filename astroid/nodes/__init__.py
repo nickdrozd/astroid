@@ -29,6 +29,7 @@ from astroid.nodes.node_classes import (
     BoolOp,
     Break,
     Call,
+    CallSite,
     Compare,
     Comprehension,
     Const,

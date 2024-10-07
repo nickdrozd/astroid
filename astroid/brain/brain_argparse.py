@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from astroid import arguments, nodes
+from astroid import nodes
 from astroid.brain.util import inference_tip
 from astroid.exceptions import UseInferenceDefault
 from astroid.manager import AstroidManager
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def infer_namespace(node, context: InferenceContext | None = None):
-    callsite = arguments.CallSite.from_call(node, context=context)
+    callsite = nodes.CallSite.from_call(node, context=context)
     if not callsite.keyword_arguments:
         # Cannot make sense of it.
         raise UseInferenceDefault()
