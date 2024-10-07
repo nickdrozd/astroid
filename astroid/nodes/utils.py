@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 
     from astroid.context import InferenceContext
     from astroid.exceptions import AstroidImportError
-    from astroid.interpreter._import.spec import ModuleSpec
-    from astroid.nodes import Module, NodeNG
+    from astroid.nodes import NodeNG
     from astroid.transforms import TransformVisitor
 
 
@@ -32,20 +31,3 @@ class InferenceErrorInfo(TypedDict):
 
     node: NodeNG
     context: InferenceContext | None
-
-
-class AstroidManagerBrain(TypedDict):
-    """Dictionary to store relevant information for a AstroidManager class."""
-
-    always_load_extensions: bool
-    astroid_cache: dict[str, Module]
-    extension_package_whitelist: set[str]
-    max_inferable_values: int
-    optimize_ast: bool
-
-    _mod_file_cache: dict[
-        tuple[str, str | None],
-        ModuleSpec | AstroidImportError,
-    ]
-    _failed_import_hooks: list[Callable[[str], Module]]
-    _transform: TransformVisitor

@@ -12,7 +12,7 @@ from __future__ import annotations
 import collections
 import os
 import zipimport
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from astroid import nodes
 from astroid.context import _invalidate_cache
@@ -39,7 +39,9 @@ if TYPE_CHECKING:
     from typing import Any, ClassVar
 
     from astroid.context import InferenceContext
-    from astroid.typing import AstroidManagerBrain, InferenceResult
+    from astroid.interpreter._import.spec import ModuleSpec
+    from astroid.nodes import Module
+    from astroid.typing import InferenceResult
 
 
 ZIP_IMPORT_EXTS = (".zip", ".egg", ".whl", ".pyz", ".pyzw")
@@ -50,6 +52,23 @@ def safe_repr(obj) -> str:
         return repr(obj)
     except Exception:  # pylint: disable=broad-except
         return "???"
+
+
+class AstroidManagerBrain(TypedDict):
+    """Dictionary to store relevant information for a AstroidManager class."""
+
+    always_load_extensions: bool
+    astroid_cache: dict[str, Module]
+    extension_package_whitelist: set[str]
+    max_inferable_values: int
+    optimize_ast: bool
+
+    _mod_file_cache: dict[
+        tuple[str, str | None],
+        ModuleSpec | AstroidImportError,
+    ]
+    _failed_import_hooks: list[Callable[[str], Module]]
+    _transform: TransformVisitor
 
 
 class AstroidManager:
