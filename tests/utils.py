@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from astroid import manager, nodes, transforms
+from astroid import manager, nodes
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -62,7 +62,7 @@ def brainless_manager():
     m._failed_import_hooks = []
     m.astroid_cache = {}
     m._mod_file_cache = {}
-    m._transform = transforms.TransformVisitor()
+    m._transform = manager.TransformVisitor()
     m.extension_package_whitelist = set()
     m.module_denylist = set()
     return m

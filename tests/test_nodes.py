@@ -25,7 +25,6 @@ from astroid import (
     extract_node,
     nodes,
     parse,
-    transforms,
     util,
 )
 from astroid._ast import Context
@@ -38,7 +37,7 @@ from astroid.exceptions import (
     ParentMissingError,
     StatementMissing,
 )
-from astroid.manager import AstroidManager
+from astroid.manager import AstroidManager, TransformVisitor
 from astroid.nodes.node_classes import (
     AssignAttr,
     AssignName,
@@ -986,7 +985,7 @@ class BoundMethodNodeTest(unittest.TestCase):
 
 class AliasesTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.transformer = transforms.TransformVisitor()
+        self.transformer = TransformVisitor()
 
     def parse_transform(self, code: str) -> Module:
         module = parse(code, apply_transforms=False)

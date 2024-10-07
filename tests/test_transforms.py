@@ -12,9 +12,9 @@ from collections.abc import Callable, Iterator
 
 import pytest
 
-from astroid import MANAGER, builder, nodes, parse, transforms
+from astroid import MANAGER, builder, nodes, parse
 from astroid.brain.brain_dataclasses import _looks_like_dataclass_field_call
-from astroid.manager import AstroidManager
+from astroid.manager import AstroidManager, TransformVisitor
 from astroid.nodes.node_classes import Call, Compare, Const, Name
 from astroid.nodes.scoped_nodes import FunctionDef, Module
 from tests.testdata.python3.recursion_error import LONG_CHAINED_METHOD_CALL
@@ -36,7 +36,7 @@ def add_transform(
 
 class TestTransforms(unittest.TestCase):
     def setUp(self) -> None:
-        self.transformer = transforms.TransformVisitor()
+        self.transformer = TransformVisitor()
 
     def parse_transform(self, code: str) -> Module:
         module = parse(code, apply_transforms=False)
