@@ -17,7 +17,6 @@ from astroid.exceptions import (
     _NonDeducibleTypeHierarchy,
 )
 from astroid.nodes import scoped_nodes
-from astroid.util import safe_infer
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -157,28 +156,8 @@ def object_issubclass(
     return _object_type_is_subclass(node, class_or_seq, context=context)
 
 
-def has_known_bases(klass, context: InferenceContext | None = None) -> bool:
-    """Return whether all base classes of a class could be inferred."""
-    try:
-        return klass._all_bases_known
-    except AttributeError:
-        pass
-    for base in klass.bases:
-        result = safe_infer(base, context=context)
-        # TODO: check for A->B->A->B pattern in class structure too?
-        if (
-            not isinstance(result, scoped_nodes.ClassDef)
-            or result is klass
-            or not has_known_bases(result, context=context)
-        ):
-            klass._all_bases_known = False
-            return False
-    klass._all_bases_known = True
-    return True
-
-
 def _type_check(type1, type2) -> bool:
-    if not all(map(has_known_bases, (type1, type2))):
+    if not (type1.has_known_bases() and type2.has_known_bases()):
         raise _NonDeducibleTypeHierarchy
 
     try:

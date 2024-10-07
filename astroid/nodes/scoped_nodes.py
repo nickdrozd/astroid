@@ -63,7 +63,7 @@ from astroid.nodes._base_nodes import (
     Statement,
 )
 from astroid.nodes.utils import InferenceErrorInfo
-from astroid.util import Uninferable, UninferableBase
+from astroid.util import Uninferable, UninferableBase, safe_infer
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator, Sequence
@@ -3039,3 +3039,30 @@ class ClassDef(
         self, _: InferenceContext | None = None, **kwargs
     ) -> Generator[ClassDef]:
         yield self
+
+    def has_known_bases(self, context: InferenceContext | None = None) -> bool:
+        """Return whether all base classes of a class could be inferred."""
+        # pylint: disable = access-member-before-definition, attribute-defined-outside-init
+
+        try:
+            return self._all_bases_known
+        except AttributeError:
+            pass
+
+        for base in self.bases:
+            result = safe_infer(base, context)
+
+            # TODO: check for A->B->A->B pattern
+            #       in class structure too?
+            if (
+                not isinstance(result, ClassDef)
+                or result is self
+                or not result.has_known_bases(context)
+            ):
+                self._all_bases_known = False
+                break
+
+        else:
+            self._all_bases_known = True
+
+        return self._all_bases_known
