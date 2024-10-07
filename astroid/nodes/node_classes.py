@@ -493,14 +493,13 @@ class AssignName(
         Same implementation as Name._infer."""
         # pylint: disable=import-outside-toplevel
         from astroid.constraint import get_constraints
-        from astroid.helpers import _higher_function_scope
 
         frame, stmts = self.lookup(self.name)
         if not stmts:
             # Try to see if the name is enclosed in a nested function
             # and use the higher (first function) scope for searching.
 
-            if parent_function := _higher_function_scope(self.scope()):
+            if parent_function := self.scope().higher_function_scope():
                 _, stmts = parent_function.lookup(self.name)
             if not stmts:
                 raise NameInferenceError(
@@ -605,13 +604,12 @@ class Name(LookupMixIn, NoChildrenNode):
         Same implementation as AssignName._infer_lhs."""
         # pylint: disable=import-outside-toplevel
         from astroid.constraint import get_constraints
-        from astroid.helpers import _higher_function_scope
 
         frame, stmts = self.lookup(self.name)
         if not stmts:
             # Try to see if the name is enclosed in a nested function
             # and use the higher (first function) scope for searching.
-            if parent_function := _higher_function_scope(self.scope()):
+            if parent_function := self.scope().higher_function_scope():
                 _, stmts = parent_function.lookup(self.name)
 
             if not stmts:
