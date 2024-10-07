@@ -694,7 +694,3 @@ def _import_string(names: list[tuple[str, str | None]]) -> str:
         else:
             _names.append(name)
     return ", ".join(_names)
-
-
-# This sets the default indent to 4 spaces.
-to_code = AsStringVisitor("    ")
