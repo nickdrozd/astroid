@@ -20,6 +20,3 @@ class Context(enum.Enum):
     Load = 1
     Store = 2
     Del = 3
-
-
-_EMPTY_OBJECT_MARKER = object()

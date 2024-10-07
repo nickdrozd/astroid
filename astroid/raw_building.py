@@ -20,7 +20,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from typing import TYPE_CHECKING
 
 from astroid import bases, nodes
-from astroid.const import _EMPTY_OBJECT_MARKER, IS_PYPY
+from astroid.const import IS_PYPY
 from astroid.manager import AstroidManager
 from astroid.nodes import node_classes
 
@@ -70,7 +70,11 @@ def build_dummy(runtime_object) -> nodes.EmptyNode:
     return enode
 
 
-def attach_dummy_node(node, name: str, runtime_object=_EMPTY_OBJECT_MARKER) -> None:
+def attach_dummy_node(
+    node,
+    name: str,
+    runtime_object=node_classes._EMPTY_OBJECT_MARKER,
+) -> None:
     """create a dummy node and register it in the locals of the given
     node with the specified name
     """

@@ -23,7 +23,7 @@ from astroid.bases import (
 from astroid.bases import (
     Generator as bGenerator,
 )
-from astroid.const import _EMPTY_OBJECT_MARKER, Context
+from astroid.const import Context
 from astroid.context import CallContext, InferenceContext, copy_context
 from astroid.decorators import (
     path_wrapper,
@@ -101,6 +101,9 @@ if TYPE_CHECKING:
         from typing_extensions import Self
 
     AssignedStmtsPossibleNode = "List" | "Tuple" | "AssignName" | "AssignAttr" | None
+
+
+_EMPTY_OBJECT_MARKER = object()
 
 
 def _is_const(value) -> bool:
