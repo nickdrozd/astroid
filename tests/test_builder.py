@@ -2,7 +2,7 @@
 # For details: https://github.com/pylint-dev/astroid/blob/main/LICENSE
 # Copyright (c) https://github.com/pylint-dev/astroid/blob/main/CONTRIBUTORS.txt
 
-"""Tests for the astroid builder and rebuilder module."""
+"""Tests for the astroid builder module."""
 
 import collections
 import importlib
