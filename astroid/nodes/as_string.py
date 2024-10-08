@@ -287,7 +287,7 @@ class AsStringVisitor:
     def visit_importfrom(self, node: nodes.ImportFrom) -> str:
         """return an astroid.ImportFrom node as string"""
         return "from {} import {}".format(
-            "." * (node.level or 0) + node.modname, _import_string(node.names)
+            "." * (node.level or 0) + node.modname, node.import_string()
         )
 
     def visit_joinedstr(self, node: nodes.JoinedStr) -> str:
@@ -402,7 +402,7 @@ class AsStringVisitor:
 
     def visit_import(self, node: nodes.Import) -> str:
         """return an astroid.Import node as string"""
-        return f"import {_import_string(node.names)}"
+        return f"import {node.import_string()}"
 
     def visit_keyword(self, node: nodes.Keyword) -> str:
         """return an astroid.Keyword node as string"""
@@ -683,14 +683,3 @@ class AsStringVisitor:
 
     def visit_unknown(self, node: Unknown) -> str:
         return str(node)
-
-
-def _import_string(names: list[tuple[str, str | None]]) -> str:
-    """return a list of (name, asname) formatted as a string"""
-    _names = []
-    for name, asname in names:
-        if asname is not None:
-            _names.append(f"{name} as {asname}")
-        else:
-            _names.append(name)
-    return ", ".join(_names)

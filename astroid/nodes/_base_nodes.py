@@ -183,6 +183,14 @@ class ImportNode(FilterStmtsBaseNode, NoChildrenNode, Statement):
             attribute=asname,
         )
 
+    def import_string(self) -> str:
+        return ", ".join(
+            [
+                name if asname is None else f"{name} as {asname}"
+                for name, asname in self.names
+            ]
+        )
+
 
 class MultiLineBlockNode(NodeNG):
     """Base node for multi-line blocks, e.g. For and FunctionDef.
