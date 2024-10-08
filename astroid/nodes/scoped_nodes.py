@@ -62,6 +62,7 @@ from astroid.nodes._base_nodes import (
     MultiLineBlockNode,
     Statement,
 )
+from astroid.nodes.node_classes import INDENT, body_str
 from astroid.nodes.utils import InferenceErrorInfo
 from astroid.util import Uninferable, UninferableBase, safe_infer
 
@@ -87,6 +88,7 @@ BUILTIN_DESCRIPTORS = frozenset(
     {"classmethod", "staticmethod", "builtins.classmethod", "builtins.staticmethod"}
 )
 
+DOC_NEWLINE = "\0"
 ########################################
 
 
@@ -514,6 +516,10 @@ class Module(LocalsDictNodeNG):
         self.body = body
         self.doc_node = doc_node
 
+    def as_string(self) -> str:
+        docs = f'"""{doc.value}"""\n\n' if (doc := self.doc_node) else ""
+        return docs + "\n".join(stmt.as_string() for stmt in self.body) + "\n\n"
+
     def stream(self) -> io.BytesIO | None:
         """Get a stream to the underlying file or bytes."""
         return (
@@ -721,7 +727,6 @@ class Module(LocalsDictNodeNG):
     def public_names(self):
         """The list of the names that are publicly available in this module.
 
-        :returns: The list of public names.
         :rtype: list(str)
         """
         return [name for name in self.keys() if not name.startswith("_")]
@@ -790,6 +795,12 @@ class GeneratorExp(ComprehensionScope):
 
         yield from self.generators
 
+    def as_string(self) -> str:
+        return "({} {})".format(
+            self.elt.as_string(),
+            " ".join(gen.as_string() for gen in self.generators),
+        )
+
 
 class DictComp(ComprehensionScope):
     """Class representing an :class:`ast.DictComp` node.
@@ -834,6 +845,13 @@ class DictComp(ComprehensionScope):
         self.key = key
         self.value = value
         self.generators = generators
+
+    def as_string(self) -> str:
+        return "{{{}: {} {}}}".format(
+            self.key.as_string(),
+            self.value.as_string(),
+            " ".join(gen.as_string() for gen in self.generators),
+        )
 
     def bool_value(self, context: InferenceContext | None = None):
         return Uninferable
@@ -886,6 +904,12 @@ class SetComp(ComprehensionScope):
         self.elt = elt
         self.generators = generators
 
+    def as_string(self) -> str:
+        return "{{{} {}}}".format(
+            self.elt.as_string(),
+            " ".join(gen.as_string() for gen in self.generators),
+        )
+
     def bool_value(self, context: InferenceContext | None = None):
         return Uninferable
 
@@ -936,6 +960,12 @@ class ListComp(ComprehensionScope):
     def postinit(self, elt: NodeNG, generators: list[nodes.Comprehension]):
         self.elt = elt
         self.generators = generators
+
+    def as_string(self) -> str:
+        return "[{} {}]".format(
+            self.elt.as_string(),
+            " ".join(gen.as_string() for gen in self.generators),
+        )
 
     def bool_value(self, context: InferenceContext | None = None):
         return Uninferable
@@ -1007,6 +1037,10 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
 
     def implicit_parameters(self):
         return 0
+
+    def as_string(self) -> str:
+        spaced = " " + args if (args := self.args.as_string()) else ""
+        return f"lambda{spaced}: {self.body.as_string()}"
 
     @property
     def type(self) -> str:
@@ -1252,6 +1286,24 @@ class FunctionDef(
         self.position = position
         self.doc_node = doc_node
         self.type_params = type_params or []
+
+    def as_string(self) -> str:
+        return self._as_string("def")
+
+    def _as_string(self, kw: str) -> str:
+        dec = self.decorators.as_string() if self.decorators else ""
+        doc = (
+            ""
+            if not (doc := self.doc_node)
+            else '\n{}"""{}"""'.format(INDENT, doc.value.replace("\n", DOC_NEWLINE))
+        )
+        name = self.name
+        args = self.args.as_string()
+        ret = "" if not self.returns else f" -> {self.returns.as_string()}"
+        end = f"{ret}:"
+        body = body_str(self.body)
+
+        return f"\n{dec}{kw} {name}({args}){end}{doc}\n{body}"
 
     @cached_property
     def extra_decorators(self) -> list[node_classes.Call]:
@@ -1715,6 +1767,9 @@ class AsyncFunctionDef(FunctionDef):
     <AsyncFor l.3 at 0x7f23b2e417b8>
     """
 
+    def as_string(self) -> str:
+        return self._as_string("async def")
+
 
 def _is_metaclass(
     klass: ClassDef,
@@ -1966,6 +2021,31 @@ class ClassDef(
         self.position = position
         self.doc_node = doc_node
         self.type_params = type_params or []
+
+    def as_string(self) -> str:
+        dec = self.decorators.as_string() if self.decorators else ""
+
+        inh = [base.as_string() for base in self.bases]
+
+        if (mc := self._metaclass) and not self._metaclass_hack:
+            inh.append(f"metaclass={mc.as_string()}")
+
+        inh += [key.as_string() for key in self.keywords]
+
+        args = f"({', '.join(inh)})" if inh else ""
+
+        doc = (
+            ""
+            if not (doc := self.doc_node)
+            else '\n{}"""{}"""'.format(INDENT, doc.value.replace("\n", DOC_NEWLINE))
+        )
+
+        body = body_str(self.body)
+
+        # TODO: handle type_params
+        string = f"\n\n{dec}class {self.name}{args}:{doc}\n{body}\n"
+
+        return string.replace(DOC_NEWLINE, "\n")
 
     @cached_property
     def blockstart_tolineno(self):
@@ -2617,9 +2697,6 @@ class ClassDef(
         instead.
         """
         return self._find_metaclass(context=context)
-
-    def has_metaclass_hack(self) -> bool:
-        return self._metaclass_hack
 
     def _islots(self):
         """Return an iterator with the inferred slots."""

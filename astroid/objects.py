@@ -48,6 +48,9 @@ class FrozenSet(node_classes.BaseContainer):
     def pytype(self) -> str:
         return "builtins.frozenset"
 
+    def as_string(self) -> str:
+        return self.parent.as_string()
+
     def _infer(self, context: InferenceContext | None = None, **kwargs):
         yield self
 
@@ -92,6 +95,9 @@ class Super(node_classes.NodeNG):
             end_lineno=scope.end_lineno,
             end_col_offset=scope.end_col_offset,
         )
+
+    def as_string(self) -> str:
+        return self.parent.as_string()
 
     def _infer(self, context: InferenceContext | None = None, **kwargs):
         yield self
@@ -355,6 +361,9 @@ class Property(scoped_nodes.FunctionDef):
 
     special_attributes = objectmodel.PropertyModel()
     type = "property"
+
+    def as_string(self) -> str:
+        return self.function.as_string()
 
     def pytype(self) -> str:
         return "builtins.property"

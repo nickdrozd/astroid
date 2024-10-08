@@ -18,7 +18,6 @@ from astroid.exceptions import (
     UseInferenceDefault,
 )
 from astroid.manager import AstroidManager
-from astroid.nodes.as_string import AsStringVisitor
 from astroid.nodes.const import OP_PRECEDENCE
 from astroid.util import Uninferable
 
@@ -224,10 +223,9 @@ class NodeNG:
             "id": id(self),
         }
 
-    def accept(self, visitor: AsStringVisitor) -> str:
+    def accept(self, visitor) -> str:
         """Visit this node using the given visitor."""
-        func = getattr(visitor, "visit_" + self.__class__.__name__.lower())
-        return func(self)
+        return getattr(visitor, f"visit_{self.__class__.__name__.lower()}")(self)
 
     def get_children(self) -> Iterator[NodeNG]:
         """Get the child nodes below this node."""
@@ -539,7 +537,6 @@ class NodeNG:
 
     def as_string(self) -> str:
         """Get the source code that this node represents."""
-        return AsStringVisitor()(self)
 
     def repr_tree(
         self,
@@ -708,3 +705,26 @@ class NodeNG:
     def op_left_associative(self) -> bool:
         # Everything is left associative except `**` and IfExp
         return True
+
+    def precedence_parens(self, child: NodeNG, is_left: bool = True) -> str:
+        child_str = child.as_string()
+
+        node_precedence = self.op_precedence()
+        child_precedence = child.op_precedence()
+
+        # Wrap child if:
+        #  - it has lower precedence
+        #  - same precedence with position opposite to
+        #    associativity direction
+        should_wrap = (
+            # 3 * (4 + 5)
+            node_precedence > child_precedence
+            # 3 - (4 - 5)
+            # (2**3)**4
+            or (
+                node_precedence == child_precedence
+                and is_left != self.op_left_associative()
+            )
+        )
+
+        return f"({child_str})" if should_wrap else child_str

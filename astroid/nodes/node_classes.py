@@ -47,6 +47,7 @@ from astroid.interpreter import dunder_lookup
 from astroid.manager import AstroidManager
 from astroid.nodes._base_nodes import (
     AssignTypeNode,
+    AttrLike,
     ImportNode,
     LookupMixIn,
     MultiLineBlockNode,
@@ -104,6 +105,8 @@ if TYPE_CHECKING:
 
 
 _EMPTY_OBJECT_MARKER = object()
+
+INDENT = "    "
 
 
 def _is_const(value) -> bool:
@@ -298,6 +301,15 @@ def _container_getitem(instance, elts, index, context: InferenceContext | None =
     raise AstroidTypeError(f"Could not use {index} as subscript index")
 
 
+def body_str(body: list[NodeNG], indent: bool = True) -> str:
+    string = "\n".join(string for stmt in body if (string := stmt.as_string()))
+
+    return string if not indent else INDENT + string.replace("\n", "\n" + INDENT)
+
+
+########################################
+
+
 class BaseContainer(ParentAssignNode, Instance, metaclass=abc.ABCMeta):
     """Base class for Set, FrozenSet, Tuple and List."""
 
@@ -446,6 +458,9 @@ class AssignName(
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return self.name
+
     def assigned_stmts(
         self,
         node: AssignedStmtsPossibleNode = None,
@@ -532,6 +547,9 @@ class DelName(NoChildrenNode, LookupMixIn, ParentAssignNode):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return self.name
+
 
 class Name(LookupMixIn, NoChildrenNode):
     """Class representing an :class:`ast.Name` node.
@@ -571,6 +589,9 @@ class Name(LookupMixIn, NoChildrenNode):
             end_col_offset=end_col_offset,
             parent=parent,
         )
+
+    def as_string(self) -> str:
+        return self.name
 
     def _get_name_nodes(self):
         yield self
@@ -907,12 +928,10 @@ class Arguments(AssignTypeNode):  # pylint: disable=too-many-instance-attributes
 
         return retval
 
-    def format_args(self, *, skippable_names: set[str] | None = None) -> str:
-        """Get the arguments formatted as string.
+    def as_string(self) -> str:
+        return self.format_args()
 
-        :returns: The formatted arguments.
-        :rtype: str
-        """
+    def format_args(self, *, skippable_names: set[str] | None = None) -> str:
         result = []
         positional_only_defaults = []
         positional_or_keyword_defaults = self.defaults
@@ -1187,7 +1206,7 @@ def _infer_attribute(
     return InferenceErrorInfo(node=node, context=context)
 
 
-class AssignAttr(LookupMixIn, ParentAssignNode):
+class AssignAttr(AttrLike, LookupMixIn, ParentAssignNode):
     """Variation of :class:`ast.Assign` representing assignment to an attribute.
 
     >>> import astroid
@@ -1282,14 +1301,22 @@ class Assert(Statement):
     """The message shown when the assertion fails."""
 
     def postinit(self, test: NodeNG, fail: NodeNG | None) -> None:
-        self.fail = fail
         self.test = test
+        self.fail = fail
 
     def get_children(self):
         yield self.test
 
         if self.fail is not None:
             yield self.fail
+
+    def as_string(self) -> str:
+        assertion = f"assert {self.test.as_string()}"
+
+        if (fail := self.fail) is not None:
+            assertion = f"{assertion}, {fail.as_string()}"
+
+        return assertion
 
 
 class Assign(AssignTypeNode, Statement):
@@ -1335,6 +1362,10 @@ class Assign(AssignTypeNode, Statement):
         yield from self.targets
 
         yield self.value
+
+    def as_string(self) -> str:
+        lhs = " = ".join(target.as_string() for target in self.targets)
+        return f"{lhs} = {self.value.as_string()}"
 
     @cached_property
     def _assign_nodes_in_scope(self) -> list[Assign]:
@@ -1401,6 +1432,14 @@ class AnnAssign(AssignTypeNode, Statement):
         if self.value is not None:
             yield self.value
 
+    def as_string(self) -> str:
+        string = f"{self.target.as_string()}: {self.annotation.as_string()}"
+
+        if (value := self.value) is not None:
+            string += f" = {value.as_string()}"
+
+        return string
+
 
 class AugAssign(AssignTypeNode, OperatorNode, Statement):
     """Class representing an :class:`ast.AugAssign` node.
@@ -1449,6 +1488,9 @@ class AugAssign(AssignTypeNode, OperatorNode, Statement):
     def postinit(self, target: Name | Attribute | Subscript, value: NodeNG) -> None:
         self.target = target
         self.value = value
+
+    def as_string(self) -> str:
+        return f"{self.target.as_string()} {self.op} {self.value.as_string()}"
 
     assigned_stmts = assign_assigned_stmts
     """Returns the assigned statement (non inferred) according to the assignment type.
@@ -1573,6 +1615,13 @@ class BinOp(OperatorNode):
         self.left = left
         self.right = right
 
+    def as_string(self) -> str:
+        left = self.precedence_parens(self.left)
+        right = self.precedence_parens(self.right, is_left=False)
+        div = "" if (op := self.op) == "**" else " "
+
+        return f"{left}{div}{op}{div}{right}"
+
     def type_errors(
         self, context: InferenceContext | None = None
     ) -> list[BadBinaryOperationMessage]:
@@ -1691,6 +1740,11 @@ class BoolOp(NodeNG):
     def op_precedence(self) -> int:
         return OP_PRECEDENCE[self.op]
 
+    def as_string(self) -> str:
+        return (f" {self.op} ").join(
+            [f"{self.precedence_parens(val)}" for val in self.values]
+        )
+
     @raise_if_nothing_inferred
     @path_wrapper
     def _infer(
@@ -1751,6 +1805,9 @@ class Break(NoChildrenNode, Statement):
     >>> node
     <Break l.1 at 0x7f23b2e9e5c0>
     """
+
+    def as_string(self) -> str:
+        return "break"
 
 
 class CallSite:
@@ -2095,6 +2152,15 @@ class Call(NodeNG):
         self.args = args
         self.keywords = keywords
 
+    def as_string(self) -> str:
+        func = self.precedence_parens(self.func)
+        args = ", ".join(
+            [arg.as_string() for arg in self.args]
+            + [kwarg.as_string() for kwarg in self.keywords]
+        )
+
+        return f"{func}({args})"
+
     @property
     def starargs(self) -> list[Starred]:
         """The positional arguments that unpack something."""
@@ -2202,6 +2268,16 @@ class Compare(NodeNG):
         # XXX maybe if self.ops:
         return self.ops[-1][1]
         # return self.left
+
+    def as_string(self) -> str:
+        lhs = self.precedence_parens(self.left)
+
+        rhs = " ".join(
+            f"{op} {self.precedence_parens(expr, is_left=False)}"
+            for op, expr in self.ops
+        )
+
+        return f"{lhs} {rhs}"
 
     # TODO: move to util?
     @staticmethod
@@ -2325,6 +2401,16 @@ class Comprehension(NodeNG):
         self.ifs = ifs
         self.is_async = is_async
 
+    def as_string(self) -> str:
+        ifs = "".join(f" if {test.as_string()}" for test in self.ifs)
+        fors = f"for {self.target.as_string()} in {self.iter.as_string()}"
+        string = f"{fors}{ifs}"
+
+        if self.is_async:
+            string = f"async {string}"
+
+        return string
+
     @raise_if_nothing_inferred
     def assigned_stmts(
         self,
@@ -2424,6 +2510,9 @@ class Const(NoChildrenNode, Instance):
         )
 
         Instance.__init__(self, None)
+
+    def as_string(self) -> str:
+        return "..." if (val := self.value) is Ellipsis else repr(val)
 
     def infer_unary_op(self, op):
         return _infer_unary_op(self.value, op)
@@ -2550,6 +2639,9 @@ class Continue(NoChildrenNode, Statement):
     <Continue l.1 at 0x7f23b2e35588>
     """
 
+    def as_string(self) -> str:
+        return "continue"
+
 
 class Decorators(NodeNG):
     """A node representing a list of
@@ -2588,8 +2680,11 @@ class Decorators(NodeNG):
     def get_children(self):
         yield from self.nodes
 
+    def as_string(self) -> str:
+        return "@%s\n" % "\n@".join(item.as_string() for item in self.nodes)
 
-class DelAttr(ParentAssignNode):
+
+class DelAttr(AttrLike, ParentAssignNode):
     """Variation of :class:`ast.Delete` representing deletion of an attribute.
 
     >>> import astroid
@@ -2656,6 +2751,9 @@ class Delete(AssignTypeNode, Statement):
     def get_children(self):
         yield from self.targets
 
+    def as_string(self) -> str:
+        return f"del {', '.join(target.as_string() for target in self.targets)}"
+
 
 class Dict(NodeNG, Instance):
     """Class representing an :class:`ast.Dict` node.
@@ -2694,6 +2792,17 @@ class Dict(NodeNG, Instance):
 
     def postinit(self, items: list[tuple[InferenceResult, InferenceResult]]) -> None:
         self.items = items
+
+    def as_string(self) -> str:
+        return "{%s}" % ", ".join(
+            (
+                key_str + value.as_string()
+                # It can only be a DictUnpack node.
+                if (key_str := key.as_string()) == "**"
+                else f"{key_str}: {value.as_string()}"
+            )
+            for key, value in self.items
+        )
 
     def infer_unary_op(self, op):
         return _infer_unary_op(dict(self.items), op)
@@ -2833,6 +2942,9 @@ class Expr(Statement):
     def get_children(self):
         yield self.value
 
+    def as_string(self) -> str:
+        return self.value.as_string()
+
     def _get_yield_nodes_skip_functions(self):
         if not self.value.is_function:
             yield from self.value._get_yield_nodes_skip_functions()
@@ -2863,6 +2975,9 @@ class EmptyNode(NoChildrenNode):
             end_col_offset=end_col_offset,
             parent=parent,
         )
+
+    def as_string(self) -> str:
+        return ""
 
     def has_underlying_object(self) -> bool:
         return self.object is not None and self.object is not _EMPTY_OBJECT_MARKER
@@ -2913,6 +3028,22 @@ class ExceptHandler(MultiLineBlockNode, AssignTypeNode, Statement):
 
     body: list[NodeNG]
     """The contents of the block."""
+
+    def as_string(self) -> str:
+        exc = "except"
+
+        if isinstance(self.parent, TryStar):
+            exc += "*"
+
+        if typ := self.type:
+            exc += f" {typ.as_string()}"
+
+            if self.name:
+                exc += f" as {self.name.as_string()}"
+
+        body = body_str(self.body)
+
+        return f"{exc}:\n{body}"
 
     @raise_if_nothing_inferred
     def assigned_stmts(
@@ -3031,6 +3162,18 @@ class For(
         self.orelse = orelse
         self.type_annotation = type_annotation
 
+    def as_string(self) -> str:
+        target = self.target.as_string()
+        fiter = self.iter.as_string()
+        body = body_str(self.body)
+
+        string = f"for {target} in {fiter}:\n{body}"
+
+        if orelse := self.orelse:
+            string += f"\nelse:\n{body_str(orelse)}"
+
+        return string
+
     assigned_stmts = for_assigned_stmts
     """Returns the assigned statement (non inferred) according to the assignment type.
     See astroid/py for actual implementation.
@@ -3069,6 +3212,9 @@ class AsyncFor(For):
     >>> node.body[0]
     <AsyncFor l.3 at 0x7f23b2e417b8>
     """
+
+    def as_string(self) -> str:
+        return f"async {super().as_string()}"
 
     @raise_if_nothing_inferred
     def assigned_stmts(
@@ -3114,6 +3260,9 @@ class Await(NodeNG):
 
     def get_children(self):
         yield self.value
+
+    def as_string(self) -> str:
+        return f"await {self.value.as_string()}"
 
 
 class ImportFrom(ImportNode):
@@ -3172,6 +3321,10 @@ class ImportFrom(ImportNode):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        modname = "." * (self.level or 0) + self.modname
+        return f"from {modname} import {self.import_string()}"
+
     @raise_if_nothing_inferred
     @path_wrapper
     def _infer(
@@ -3206,7 +3359,7 @@ class ImportFrom(ImportNode):
             ) from error
 
 
-class Attribute(NodeNG):
+class Attribute(AttrLike):
     """Class representing an :class:`ast.Attribute` node."""
 
     expr: NodeNG
@@ -3283,6 +3436,9 @@ class Global(NoChildrenNode, Statement):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return f"global {', '.join(self.names)}"
+
     def _infer_name(self, frame, name):
         return name
 
@@ -3327,6 +3483,18 @@ class If(MultiLineWithElseBlockNode, Statement):
         self.test = test
         self.body = body
         self.orelse = orelse
+
+    def as_string(self) -> str:
+        ifs = [f"if {self.test.as_string()}:\n{body_str(self.body)}"]
+
+        if orelse := self.orelse:
+            ifs.append(
+                f"el{body_str(self.orelse, indent=False)}"
+                if len(orelse) == 1 and isinstance(orelse[0], If)
+                else f"else:\n{body_str(orelse)}"
+            )
+
+        return "\n".join(ifs)
 
     @cached_property
     def blockstart_tolineno(self):
@@ -3387,6 +3555,13 @@ class IfExp(NodeNG):
         yield self.test
         yield self.body
         yield self.orelse
+
+    def as_string(self) -> str:
+        return "{} if {} else {}".format(
+            self.precedence_parens(self.body, is_left=True),
+            self.precedence_parens(self.test, is_left=True),
+            self.precedence_parens(self.orelse, is_left=False),
+        )
 
     def op_left_associative(self) -> bool:
         # `1 if True else 2 if False else 3` is parsed as
@@ -3467,6 +3642,9 @@ class Import(ImportNode):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return f"import {self.import_string()}"
+
     @raise_if_nothing_inferred
     @path_wrapper
     def _infer(
@@ -3532,6 +3710,11 @@ class Keyword(NodeNG):
     def get_children(self):
         yield self.value
 
+    def as_string(self) -> str:
+        value = self.value.as_string()
+
+        return f"**{value}" if (arg := self.arg) is None else f"{arg}={value}"
+
 
 class List(BaseContainer):
     """Class representing an :class:`ast.List` node.
@@ -3566,6 +3749,9 @@ class List(BaseContainer):
             end_col_offset=end_col_offset,
             parent=parent,
         )
+
+    def as_string(self) -> str:
+        return f"[{', '.join(elt.as_string() for elt in self.elts)}]"
 
     def assigned_stmts(
         self,
@@ -3653,6 +3839,9 @@ class Nonlocal(NoChildrenNode, Statement):
     def _infer_name(self, frame, name):
         return name
 
+    def as_string(self) -> str:
+        return f"nonlocal {', '.join(self.names)}"
+
 
 class ParamSpec(AssignTypeNode):
     """Class representing a :class:`ast.ParamSpec` node.
@@ -3669,6 +3858,9 @@ class ParamSpec(AssignTypeNode):
 
     def postinit(self, *, name: AssignName) -> None:
         self.name = name
+
+    def as_string(self) -> str:
+        return self.name.as_string()
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -3693,6 +3885,9 @@ class Pass(NoChildrenNode, Statement):
     >>> node
     <Pass l.1 at 0x7f23b2e9e748>
     """
+
+    def as_string(self) -> str:
+        return "pass"
 
 
 class Raise(Statement):
@@ -3734,6 +3929,17 @@ class Raise(Statement):
         if self.cause is not None:
             yield self.cause
 
+    def as_string(self) -> str:
+        string = "raise"
+
+        if exc := self.exc:
+            string += f" {exc.as_string()}"
+
+            if cause := self.cause:
+                string += f" from {cause.as_string()}"
+
+        return string
+
 
 class Return(Statement):
     """Class representing an :class:`ast.Return` node.
@@ -3756,8 +3962,13 @@ class Return(Statement):
         if self.value is not None:
             yield self.value
 
-    def is_tuple_return(self) -> bool:
-        return isinstance(self.value, Tuple)
+    def as_string(self) -> str:
+        string = "return"
+
+        if value := self.value:
+            string += f" {value.as_string()}"
+
+        return string
 
     def _get_return_nodes_skip_functions(self):
         yield self
@@ -3777,6 +3988,9 @@ class Set(BaseContainer):
 
     def pytype(self) -> str:
         return "builtins.set"
+
+    def as_string(self) -> str:
+        return f"{{{', '.join(elt.as_string() for elt in self.elts)}}}"
 
 
 class Slice(NodeNG):
@@ -3867,6 +4081,17 @@ class Slice(NodeNG):
     ) -> Iterator[Slice]:
         yield self
 
+    def as_string(self) -> str:
+        lower = self.lower.as_string() if self.lower else ""
+        upper = self.upper.as_string() if self.upper else ""
+
+        string = f"{lower}:{upper}"
+
+        if step := self.step:
+            string += f":{step.as_string()}"
+
+        return string
+
 
 class Starred(ParentAssignNode):
     """Class representing an :class:`ast.Starred` node.
@@ -3909,6 +4134,9 @@ class Starred(ParentAssignNode):
 
     def get_children(self):
         yield self.value
+
+    def as_string(self) -> str:
+        return f"*{self.value.as_string()}"
 
     @yes_if_nothing_inferred
     def assigned_stmts(  # noqa: C901
@@ -4159,6 +4387,17 @@ class Subscript(NodeNG):
         yield self.value
         yield self.slice
 
+    def as_string(self) -> str:
+        idx = self.slice
+        if idx.__class__.__name__.lower() == "index":
+            idx = idx.value
+        idxstr = idx.as_string()
+        if idx.__class__.__name__.lower() == "tuple" and idx.elts:
+            # Remove parenthesis in tuple and extended slice.
+            # a[(::1, 1:)] is not valid syntax.
+            idxstr = idxstr[1:-1]
+        return f"{self.precedence_parens(self.value)}[{idxstr}]"
+
     def _infer_subscript(
         self, context: InferenceContext | None = None, **kwargs
     ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
@@ -4301,6 +4540,19 @@ class Try(MultiLineWithElseBlockNode, Statement):
         self.orelse = orelse
         self.finalbody = finalbody
 
+    def as_string(self) -> str:
+        trys = [f"try:\n{body_str(self.body)}"]
+
+        trys.extend(handler.as_string() for handler in self.handlers)
+
+        if orelse := self.orelse:
+            trys.append(f"else:\n{body_str(orelse)}")
+
+        if finalbody := self.finalbody:
+            trys.append(f"finally:\n{body_str(finalbody)}")
+
+        return "\n".join(trys)
+
     def _infer_name(self, frame, name):
         return name
 
@@ -4366,6 +4618,19 @@ class TryStar(MultiLineWithElseBlockNode, Statement):
         self.orelse = orelse or []
         self.finalbody = finalbody or []
 
+    def as_string(self) -> str:
+        trys = [f"try:\n{body_str(self.body)}"]
+
+        trys.extend(handler.as_string() for handler in self.handlers)
+
+        if orelse := self.orelse:
+            trys.append(f"else:\n{body_str(orelse)}")
+
+        if finalbody := self.finalbody:
+            trys.append(f"finally:\n{body_str(finalbody)}")
+
+        return "\n".join(trys)
+
     def _infer_name(self, frame, name):
         return name
 
@@ -4424,7 +4689,7 @@ class Tuple(BaseContainer):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        self.ctx: ctx
+        self.ctx = ctx
 
         super().__init__(
             lineno=lineno,
@@ -4432,6 +4697,13 @@ class Tuple(BaseContainer):
             end_lineno=end_lineno,
             end_col_offset=end_col_offset,
             parent=parent,
+        )
+
+    def as_string(self) -> str:
+        return (
+            f"({elts[0].as_string()}, )"
+            if len(elts := self.elts) == 1
+            else f"({', '.join(child.as_string() for child in elts)})"
         )
 
     def assigned_stmts(
@@ -4499,6 +4771,9 @@ class TypeAlias(AssignTypeNode, Statement):
         self.type_params = type_params
         self.value = value
 
+    def as_string(self) -> str:
+        return name.as_string() if (name := self.name) else "_"
+
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
     ) -> Iterator[TypeAlias]:
@@ -4524,6 +4799,9 @@ class TypeVar(AssignTypeNode):
     def postinit(self, *, name: AssignName, bound: NodeNG | None) -> None:
         self.name = name
         self.bound = bound
+
+    def as_string(self) -> str:
+        return name.as_string() if (name := self.name) else "_"
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -4555,6 +4833,9 @@ class TypeVarTuple(AssignTypeNode):
 
     def postinit(self, *, name: AssignName) -> None:
         self.name = name
+
+    def as_string(self) -> str:
+        return f"*{name.as_string()}" if (name := self.name) else ""
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -4617,6 +4898,9 @@ class UnaryOp(OperatorNode):
 
     def postinit(self, operand: NodeNG) -> None:
         self.operand = operand
+
+    def as_string(self) -> str:
+        return f"{'not ' if self.op == 'not' else self.op}{self.precedence_parens(self.operand)}"
 
     def type_errors(
         self, context: InferenceContext | None = None
@@ -4758,6 +5042,14 @@ class While(MultiLineWithElseBlockNode, Statement):
         self.body = body
         self.orelse = orelse
 
+    def as_string(self) -> str:
+        string = f"while {self.test.as_string()}:\n{body_str(self.body)}"
+
+        if orelse := self.orelse:
+            string += f"\nelse:\n{body_str(orelse)}"
+
+        return string
+
     @cached_property
     def blockstart_tolineno(self):
         return self.test.tolineno
@@ -4822,6 +5114,14 @@ class With(
         self.body = body or []
 
         self.type_annotation = type_annotation
+
+    def as_string(self) -> str:
+        items = ", ".join(
+            f"{expr.as_string()}" + (name and f" as {name.as_string()}" or "")
+            for expr, name in self.items
+        )
+
+        return f"with {items}:\n{body_str(self.body)}"
 
     @raise_if_nothing_inferred
     def assigned_stmts(
@@ -4959,6 +5259,9 @@ class With(
 class AsyncWith(With):
     """Asynchronous ``with`` built with the ``async`` keyword."""
 
+    def as_string(self) -> str:
+        return f"async {super().as_string()}"
+
 
 class Yield(NodeNG):
     """Class representing an :class:`ast.Yield` node.
@@ -4981,6 +5284,15 @@ class Yield(NodeNG):
         if self.value is not None:
             yield self.value
 
+    def as_string(self) -> str:
+        val = (" " + val.as_string()) if (val := self.value) else ""
+        expr = "yield" + val
+
+        if self.parent.is_statement:
+            return expr
+
+        return f"({expr})"
+
     def _get_yield_nodes_skip_functions(self):
         yield self
 
@@ -4991,9 +5303,21 @@ class Yield(NodeNG):
 class YieldFrom(Yield):  # TODO value is required, not optional
     """Class representing an :class:`ast.YieldFrom` node."""
 
+    def as_string(self) -> str:
+        val = (" " + val.as_string()) if (val := self.value) else ""
+        expr = "yield from" + val
+
+        if self.parent.is_statement:
+            return expr
+
+        return f"({expr})"
+
 
 class DictUnpack(NoChildrenNode):
     """Represents the unpacking of dicts into dicts using :pep:`448`."""
+
+    def as_string(self) -> str:
+        return "**"
 
 
 class FormattedValue(NodeNG):
@@ -5037,6 +5361,20 @@ class FormattedValue(NodeNG):
 
         if self.format_spec is not None:
             yield self.format_spec
+
+    def as_string(self) -> str:
+        result = self.value.as_string()
+
+        if (conv := self.conversion) and conv >= 0:
+            # e.g. if conversion == 114: result += "!r"
+            result += "!" + chr(conv)
+
+        if spec := self.format_spec:
+            # The format spec is itself a JoinedString, i.e. an f-string
+            # We strip the f and quotes of the ends
+            result += ":" + spec.as_string()[2:-1]
+
+        return f"{{{result}}}"
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -5091,6 +5429,34 @@ class JoinedStr(NodeNG):
 
     def get_children(self):
         yield from self.values
+
+    def as_string(self) -> str:
+        string = "".join(
+            (
+                # Use repr on the string literal parts
+                # to get proper escapes, e.g. \n, \\, \"
+                # But strip the quotes off the ends
+                # (they will always be one character: ' or ")
+                repr(value.value)[1:-1]
+                # Literal braces must be doubled to escape them
+                .replace("{", "{{").replace("}", "}}")
+                # Each value in values is either a string literal
+                # (Const) or a FormattedValue
+                if type(value).__name__ == "Const"
+                else value.as_string()
+            )
+            for value in self.values
+        )
+
+        # Try to find surrounding quotes that don't appear at all in
+        # the string. Because the formatted values inside {} can't
+        # contain backslash (\) using a triple quote is sometimes
+        # necessary
+        for quote in ("'", '"', '"""', "'''"):
+            if quote not in string:
+                break
+
+        return "f" + quote + string + quote
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -5150,6 +5516,9 @@ class NamedExpr(AssignTypeNode):
     def postinit(self, target: NodeNG, value: NodeNG) -> None:
         self.target = target
         self.value = value
+
+    def as_string(self) -> str:
+        return f"{self.target.as_string()} := {self.value.as_string()}"
 
     @raise_if_nothing_inferred
     def assigned_stmts(
@@ -5237,6 +5606,9 @@ class Unknown(AssignTypeNode):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return str(self)
+
     def qname(self) -> str:
         return "Unknown"
 
@@ -5272,6 +5644,9 @@ class EvaluatedObject(NodeNG):
             end_lineno=self.original.end_lineno,
             end_col_offset=self.original.end_col_offset,
         )
+
+    def as_string(self) -> str:
+        return self.original.as_string()
 
     def _infer(
         self, context: InferenceContext | None = None, **kwargs
@@ -5329,6 +5704,9 @@ class Match(Statement, MultiLineBlockNode):
         self.subject = subject
         self.cases = cases
 
+    def as_string(self) -> str:
+        return f"match {self.subject.as_string()}:\n{body_str(self.cases)}"
+
 
 class Pattern(NodeNG):
     """Base class for all Pattern nodes."""
@@ -5374,6 +5752,10 @@ class MatchCase(MultiLineBlockNode):
         self.guard = guard
         self.body = body
 
+    def as_string(self) -> str:
+        guard = f" if {guard.as_string()}" if (guard := self.guard) else ""
+        return f"case {self.pattern.as_string()}{guard}:\n" f"{body_str(self.body)}"
+
 
 class MatchValue(Pattern):
     """Class representing a :class:`ast.MatchValue` node.
@@ -5410,6 +5792,9 @@ class MatchValue(Pattern):
 
     def postinit(self, *, value: NodeNG) -> None:
         self.value = value
+
+    def as_string(self) -> str:
+        return self.value.as_string()
 
 
 class MatchSingleton(Pattern):
@@ -5454,6 +5839,9 @@ class MatchSingleton(Pattern):
             parent=parent,
         )
 
+    def as_string(self) -> str:
+        return str(self.value)
+
 
 class MatchSequence(Pattern):
     """Class representing a :class:`ast.MatchSequence` node.
@@ -5494,6 +5882,13 @@ class MatchSequence(Pattern):
 
     def postinit(self, *, patterns: list[Pattern]) -> None:
         self.patterns = patterns
+
+    def as_string(self) -> str:
+        return (
+            "[]"
+            if (patterns := self.patterns) is None
+            else f"[{', '.join(pat.as_string() for pat in patterns)}]"
+        )
 
 
 class MatchMapping(AssignTypeNode, Pattern):
@@ -5555,6 +5950,20 @@ class MatchMapping(AssignTypeNode, Pattern):
         return
         yield
 
+    def as_string(self) -> str:
+        mappings: list[str] = []
+
+        if self.keys and self.patterns:
+            mappings.extend(
+                f"{key.as_string()}: {pat.as_string()}"
+                for key, pat in zip(self.keys, self.patterns)
+            )
+
+        if self.rest:
+            mappings.append(f"**{self.rest.as_string()}")
+
+        return f"{'{'}{', '.join(mappings)}{'}'}"
+
 
 class MatchClass(Pattern):
     """Class representing a :class:`ast.MatchClass` node.
@@ -5610,6 +6019,18 @@ class MatchClass(Pattern):
         self.kwd_attrs = kwd_attrs
         self.kwd_patterns = kwd_patterns
 
+    def as_string(self) -> str:
+        class_strings: list[str] = []
+
+        if self.patterns:
+            class_strings.extend(p.as_string() for p in self.patterns)
+
+        if self.kwd_attrs and self.kwd_patterns:
+            for attr, pattern in zip(self.kwd_attrs, self.kwd_patterns):
+                class_strings.append(f"{attr}={pattern.as_string()}")
+
+        return f"{self.cls.as_string()}({', '.join(class_strings)})"
+
 
 class MatchStar(AssignTypeNode, Pattern):
     """Class representing a :class:`ast.MatchStar` node.
@@ -5646,6 +6067,10 @@ class MatchStar(AssignTypeNode, Pattern):
 
     def postinit(self, *, name: AssignName | None) -> None:
         self.name = name
+
+    def as_string(self) -> str:
+        name_str = name.as_string() if (name := self.name) else "_"
+        return f"*{name_str}"
 
     @yes_if_nothing_inferred
     def assigned_stmts(
@@ -5734,6 +6159,15 @@ class MatchAs(AssignTypeNode, Pattern):
         ):
             yield self.parent.parent.subject
 
+    def as_string(self) -> str:
+        if isinstance(self.parent, (MatchSequence, MatchMapping, MatchClass)):
+            return self.name.as_string() if self.name else "_"
+
+        return (
+            f"{self.pattern.as_string() if self.pattern else '_'}"
+            f"{f' as {self.name.as_string()}' if self.name else ''}"
+        )
+
 
 class MatchOr(Pattern):
     """Class representing a :class:`ast.MatchOr` node.
@@ -5770,6 +6204,9 @@ class MatchOr(Pattern):
 
     def postinit(self, *, patterns: list[Pattern]) -> None:
         self.patterns = patterns
+
+    def as_string(self) -> str:
+        return " | ".join(pat.as_string() for pat in self.patterns)
 
 
 # constants ##############################################################

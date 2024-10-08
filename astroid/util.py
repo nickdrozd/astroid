@@ -31,6 +31,9 @@ class UninferableBase:
 
     __str__ = __repr__
 
+    def as_string(self) -> str:
+        return str(self)
+
     def __getattribute__(self, name: str):
         if name == "next":
             raise AttributeError("next method should not be called")

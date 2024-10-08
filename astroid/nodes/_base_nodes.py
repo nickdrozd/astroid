@@ -660,3 +660,16 @@ class OperatorNode(NodeNG):
 
         # The operation doesn't seem to be supported so let the caller know about it
         yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
+
+
+class AttrLike(NodeNG):
+    attrname: str
+    expr: NodeNG
+
+    def as_string(self) -> str:
+        left = self.precedence_parens(self.expr)
+
+        if left.isdigit():
+            left = f"({left})"
+
+        return f"{left}.{self.attrname}"
