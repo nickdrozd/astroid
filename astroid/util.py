@@ -112,13 +112,6 @@ class BadBinaryOperationMessage(BadOperationMessage):
         return msg.format(self.op, self.left_type.name, self.right_type.name)
 
 
-def _instancecheck(cls, other) -> bool:
-    wrapped = cls.__wrapped__
-    other_cls = other.__class__
-    is_instance_of = wrapped is other_cls or issubclass(other_cls, wrapped)
-    return is_instance_of
-
-
 def safe_infer(
     node: nodes.NodeNG | bases.Proxy | UninferableBase,
     context: InferenceContext | None = None,
