@@ -370,20 +370,12 @@ class NodeNG:
     # FIXME : should we merge child_sequence and locate_child ? locate_child
     # is only used in are_exclusive, child_sequence one time in pylint.
 
-    def next_sibling(self):
-        """The next sibling statement node.
-
-        :returns: The next sibling statement node.
-        :rtype: NodeNG or None
-        """
+    def next_sibling(self) -> NodeNG | None:
+        """The next sibling statement node."""
         return self.parent.next_sibling()
 
-    def previous_sibling(self):
-        """The previous sibling statement.
-
-        :returns: The previous sibling statement node.
-        :rtype: NodeNG or None
-        """
+    def previous_sibling(self) -> NodeNG | None:
+        """The previous sibling statement."""
         return self.parent.previous_sibling()
 
     # these are lazy because they're relatively expensive to compute for every

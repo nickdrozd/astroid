@@ -235,9 +235,6 @@ class LocalsDictNodeNG(LookupMixIn):
         """Get the 'qualified' name of the node.
 
         For example: module.name, module.class.name ...
-
-        :returns: The qualified name.
-        :rtype: str
         """
         # pylint: disable=no-member; github.com/pylint-dev/astroid/issues/278
         if self.parent is None:
@@ -248,11 +245,6 @@ class LocalsDictNodeNG(LookupMixIn):
             return self.name
 
     def scope(self):
-        """The first parent node defining a new scope.
-
-        :returns: The first parent scope node.
-        :rtype: Module or FunctionDef or ClassDef or Lambda or GenExpr
-        """
         return self
 
     def scope_lookup(
@@ -522,47 +514,20 @@ class Module(LocalsDictNodeNG):
         self.body = body
         self.doc_node = doc_node
 
-    def _get_stream(self):
-        if self.file_bytes is not None:
-            return io.BytesIO(self.file_bytes)
-        if self.file is not None:
-            # pylint: disable=consider-using-with
-            stream = open(self.file, "rb")
-            return stream
-        return None
-
-    def stream(self):
-        """Get a stream to the underlying file or bytes.
-
-        :type: file or io.BytesIO or None
-        """
-        return self._get_stream()
+    def stream(self) -> io.BytesIO | None:
+        """Get a stream to the underlying file or bytes."""
+        return (
+            io.BytesIO(file_bytes)
+            if (file_bytes := self.file_bytes) is not None
+            else open(sfile, "rb") if (sfile := self.file) is not None else None
+        )
 
     def block_range(self, lineno: int) -> tuple[int, int]:
-        """Get a range from where this node starts to where this node ends.
-
-        :param lineno: Unused.
-
-        :returns: The range of line numbers that this node belongs to.
-        """
         return self.fromlineno, self.tolineno
 
     def scope_lookup(
         self, node: LookupMixIn, name: str, offset: int = 0
     ) -> tuple[LocalsDictNodeNG, list[node_classes.NodeNG]]:
-        """Lookup where the given variable is assigned.
-
-        :param node: The node to look for assignments up to.
-            Any assignments after the given node are ignored.
-
-        :param name: The name of the variable to find assignments for.
-
-        :param offset: The line offset to filter statements up to.
-
-        :returns: This scope node and the list of assignments associated to the
-            given name according to the scope where it has been found (locals,
-            globals or builtin).
-        """
         if name in self.scope_attrs and name not in self.locals:
             try:
                 return self, self.getattr(name)
@@ -607,12 +572,7 @@ class Module(LocalsDictNodeNG):
     def igetattr(
         self, name: str, context: InferenceContext | None = None
     ) -> Iterator[InferenceResult]:
-        """Infer the possible values of the given variable.
-
-        :param name: The name of the variable to infer.
-
-        :returns: The inferred possible values.
-        """
+        """Infer the possible values of the given variable."""
         # set lookup name since this is necessary to infer on import nodes for
         # instance
         context = copy_context(context)
@@ -629,39 +589,16 @@ class Module(LocalsDictNodeNG):
 
         If so, the module contains a complete representation,
         including the code.
-
-        :returns: Whether the module has been built from a .py file.
         """
         return self.file is not None and self.file.endswith(".py")
 
     def statement(self) -> NoReturn:
-        """The first parent node, including self, marked as statement node.
-
-        When called on a :class:`Module` this raises a StatementMissing.
-        """
         raise StatementMissing(target=self)
-
-    def previous_sibling(self):
-        """The previous sibling statement.
-
-        :returns: The previous sibling statement node.
-        :rtype: NodeNG or None
-        """
-
-    def next_sibling(self):
-        """The next sibling statement node.
-
-        :returns: The next sibling statement node.
-        :rtype: NodeNG or None
-        """
 
     _absolute_import_activated = True
 
     def absolute_import_activated(self) -> bool:
-        """Whether :pep:`328` absolute import behaviour has been enabled.
-
-        :returns: Whether :pep:`328` has been enabled.
-        """
+        """Whether :pep:`328` absolute import behaviour has been enabled."""
         return self._absolute_import_activated
 
     def import_module(
@@ -671,18 +608,7 @@ class Module(LocalsDictNodeNG):
         level: int | None = None,
         use_cache: bool = True,
     ) -> Module:
-        """Get the ast for a given module as if imported from this module.
-
-        :param modname: The name of the module to "import".
-
-        :param relative_only: Whether to only consider relative imports.
-
-        :param level: The level of relative import.
-
-        :param use_cache: Whether to use the astroid_cache of modules.
-
-        :returns: The imported module ast.
-        """
+        """Get the ast for a given module as if imported from this module."""
         if relative_only and level is None:
             level = 0
         absmodname = self.relative_to_absolute_name(modname, level)
@@ -706,13 +632,6 @@ class Module(LocalsDictNodeNG):
         """Get the absolute module name for a relative import.
 
         The relative import can be implicit or explicit.
-
-        :param modname: The module name to convert.
-
-        :param level: The level of relative import.
-
-        :returns: The absolute module name.
-
         :raises TooManyLevelsError: When the relative import refers to a
             module too far above this one.
         """
@@ -756,7 +675,6 @@ class Module(LocalsDictNodeNG):
         It doesn't include the '__builtins__' name which is added by the
         current CPython implementation of wildcard imports.
 
-        :returns: The list of imported names.
         :rtype: list(str)
         """
         # We separate the different steps of lookup in try/excepts
@@ -969,12 +887,6 @@ class SetComp(ComprehensionScope):
         self.generators = generators
 
     def bool_value(self, context: InferenceContext | None = None):
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`SetComp` this is always :class:`Uninferable`.
-        :rtype: Uninferable
-        """
         return Uninferable
 
     def get_children(self):
@@ -1026,12 +938,6 @@ class ListComp(ComprehensionScope):
         self.generators = generators
 
     def bool_value(self, context: InferenceContext | None = None):
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`ListComp` this is always :class:`Uninferable`.
-        :rtype: Uninferable
-        """
         return Uninferable
 
     def get_children(self):
@@ -1158,9 +1064,6 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
         """Get the names of each of the arguments, including that
         of the collections of variable-length arguments ("args", "kwargs",
         etc.), as well as positional-only and keyword-only arguments.
-
-        :returns: The names of the arguments.
-        :rtype: list(str)
         """
         return [elt.name for elt in self.args.arguments]
 
@@ -1175,19 +1078,6 @@ class Lambda(FilterStmtsBaseNode, LocalsDictNodeNG):
     def scope_lookup(
         self, node: LookupMixIn, name: str, offset: int = 0
     ) -> tuple[LocalsDictNodeNG, list[NodeNG]]:
-        """Lookup where the given names is assigned.
-
-        :param node: The node to look for assignments up to.
-            Any assignments after the given node are ignored.
-
-        :param name: The name to find assignments for.
-
-        :param offset: The line offset to filter statements up to.
-
-        :returns: This scope node and the list of assignments associated to the
-            given name according to the scope where it has been found (locals,
-            globals or builtin).
-        """
         if (self.args.defaults and node in self.args.defaults) or (
             self.args.kw_defaults and node in self.args.kw_defaults
         ):
@@ -1275,26 +1165,22 @@ class FunctionDef(
     """The arguments that the function takes."""
 
     is_function = True
-    """Whether this node indicates a function.
+    """Whether this node indicates a function. """
 
-    For a :class:`FunctionDef` this is always ``True``.
-
-    :type: bool
-    """
     type_annotation = None
-    """If present, this will contain the type annotation passed by a type comment
+    """If present, this will contain the type annotation passed by a type comment """
 
-    :type: NodeNG or None
-    """
     type_comment_args = None
     """
     If present, this will contain the type annotation for arguments
     passed by a type comment
     """
+
     type_comment_returns = None
     """If present, this will contain the return type annotation, passed by a type comment"""
+
     # attributes below are set by the builder module or by raw factories
-    _other_fields = ("name", "position")
+    _other_fields = "name", "position"
     _other_other_fields = (
         "locals",
         "_type",
@@ -1357,25 +1243,6 @@ class FunctionDef(
             list[nodes.TypeVar | nodes.ParamSpec | nodes.TypeVarTuple] | None
         ) = None,
     ):
-        """Do some setup after initialisation.
-
-        :param args: The arguments that the function takes.
-
-        :param body: The contents of the function body.
-
-        :param decorators: The decorators that are applied to this
-            method or function.
-        :params type_comment_returns:
-            The return type annotation passed via a type comment.
-        :params type_comment_args:
-            The args type annotation passed via a type comment.
-        :params position:
-            Position of function keyword(s) and name.
-        :param doc_node:
-            The doc node associated with this node.
-        :param type_params:
-            The type_params associated with this node.
-        """
         self.args = args
         self.body = body
         self.decorators = decorators
@@ -1441,9 +1308,6 @@ class FunctionDef(
         """Get the names of each of the arguments, including that
         of the collections of variable-length arguments ("args", "kwargs",
         etc.), as well as positional-only and keyword-only arguments.
-
-        :returns: The names of the arguments.
-        :rtype: list(str)
         """
         return [elt.name for elt in self.args.arguments]
 
@@ -1553,22 +1417,12 @@ class FunctionDef(
 
     @cached_property
     def blockstart_tolineno(self):
-        """The line on which the beginning of this block ends.
-
-        :type: int
-        """
         return self.args.tolineno
 
     def implicit_parameters(self):
         return 1 if self.is_bound() else 0
 
     def block_range(self, lineno: int) -> tuple[int, int]:
-        """Get a range from the given line number to where this node ends.
-
-        :param lineno: Unused.
-
-        :returns: The range of line numbers that this node belongs to,
-        """
         return self.fromlineno, self.tolineno
 
     def igetattr(
@@ -1693,7 +1547,6 @@ class FunctionDef(
     def infer_yield_result(self, context: InferenceContext | None = None):
         """Infer what the function yields when called
 
-        :returns: What the function yields
         :rtype: iterable(NodeNG or Uninferable) or None
         """
         for yield_ in self.nodes_of_class(node_classes.Yield):
@@ -1800,11 +1653,6 @@ class FunctionDef(
                 yield Uninferable
 
     def bool_value(self, context: InferenceContext | None = None) -> bool:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-            For a :class:`FunctionDef` this is always ``True``.
-        """
         return True
 
     def get_children(self):
@@ -1948,7 +1796,6 @@ def get_wrapping_class(node):
     We consider that a class wraps a node if the class
     is a parent for the said node.
 
-    :returns: The class that wraps the given node
     :rtype: ClassDef or None
     """
 
@@ -2122,22 +1969,12 @@ class ClassDef(
 
     @cached_property
     def blockstart_tolineno(self):
-        """The line on which the beginning of this block ends.
-
-        :type: int
-        """
         if self.bases:
             return self.bases[-1].tolineno
 
         return self.fromlineno
 
     def block_range(self, lineno: int) -> tuple[int, int]:
-        """Get a range from the given line number to where this node ends.
-
-        :param lineno: Unused.
-
-        :returns: The range of line numbers that this node belongs to,
-        """
         return self.fromlineno, self.tolineno
 
     def pytype(self) -> str:
@@ -2150,13 +1987,6 @@ class ClassDef(
         return True
 
     def is_subtype_of(self, type_name, context: InferenceContext | None = None) -> bool:
-        """Whether this class is a subtype of the given type.
-
-        :param type_name: The name of the type of check against.
-        :type type_name: str
-
-        :returns: Whether this class is a subtype of the given type.
-        """
         if self.qname() == type_name:
             return True
 
@@ -2251,19 +2081,6 @@ class ClassDef(
     def scope_lookup(
         self, node: LookupMixIn, name: str, offset: int = 0
     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
-        """Lookup where the given name is assigned.
-
-        :param node: The node to look for assignments up to.
-            Any assignments after the given node are ignored.
-
-        :param name: The name to find assignments for.
-
-        :param offset: The line offset to filter statements up to.
-
-        :returns: This scope node and the list of assignments associated to the
-            given name according to the scope where it has been found (locals,
-            globals or builtin).
-        """
         # If the name looks like a builtin name, just try to look
         # into the upper scope of this class. We might have a
         # decorator that it's poorly named after a builtin object
@@ -2302,12 +2119,10 @@ class ClassDef(
         return frame._scope_lookup(node, name, offset)
 
     @property
-    def basenames(self):
+    def basenames(self) -> list[str]:
         """The names of the parent classes
 
         Names are given in the order they appear in the class definition.
-
-        :type: list(str)
         """
         return [bnode.as_string() for bnode in self.bases]
 
@@ -2317,8 +2132,6 @@ class ClassDef(
         """Iterate over the base classes in prefixed depth first order.
 
         :param recurs: Whether to recurse or return direct ancestors only.
-
-        :returns: The base classes
         """
         # FIXME: should be possible to choose the resolution order
         # FIXME: inference make infinite loops possible here
@@ -2357,15 +2170,8 @@ class ClassDef(
                 except InferenceError:
                     continue
 
-    def local_attr_ancestors(self, name, context: InferenceContext | None = None):
-        """Iterate over the parents that define the given name.
-
-        :param name: The name to find definitions for.
-        :type name: str
-
-        :returns: The parents that define the given name.
-        :rtype: iterable(NodeNG)
-        """
+    def local_attr_ancestors(self, name: str, context: InferenceContext | None = None):
+        """Iterate over the parents that define the given name."""
         # Look up in the mro if we can. This will result in the
         # attribute being looked up just as Python does it.
         try:
@@ -2378,37 +2184,22 @@ class ClassDef(
             if name in astroid:
                 yield astroid
 
-    def instance_attr_ancestors(self, name, context: InferenceContext | None = None):
-        """Iterate over the parents that define the given name as an attribute.
-
-        :param name: The name to find definitions for.
-        :type name: str
-
-        :returns: The parents that define the given name as
-            an instance attribute.
-        :rtype: iterable(NodeNG)
-        """
+    def instance_attr_ancestors(
+        self, name: str, context: InferenceContext | None = None
+    ):
+        """Iterate over the parents that define the given name as an attribute."""
         for astroid in self.ancestors(context=context):
             if name in astroid.instance_attrs:
                 yield astroid
 
     def has_base(self, node) -> bool:
-        """Whether this class directly inherits from the given node.
-
-        :param node: The node to check for.
-        :type node: NodeNG
-
-        :returns: Whether this class directly inherits from the given node.
-        """
+        """Whether this class directly inherits from the given node."""
         return node in self.bases
 
     def local_attr(self, name, context: InferenceContext | None = None):
         """Get the list of assign nodes associated to the given name.
 
         Assignments are looked for in both this class and in parents.
-
-        :returns: The list of assignments to the given name.
-        :rtype: list(NodeNG)
 
         :raises AttributeInferenceError: If no attribute with this name
             can be found in this class or parent classes.
@@ -2427,7 +2218,6 @@ class ClassDef(
 
         Assignments are looked for in both this class and in parents.
 
-        :returns: The list of assignments to the given name.
         :rtype: list(NodeNG)
 
         :raises AttributeInferenceError: If no attribute with this name
@@ -2444,10 +2234,7 @@ class ClassDef(
         raise AttributeInferenceError(target=self, attribute=name, context=context)
 
     def instantiate_class(self) -> Instance:
-        """Get an :class:`Instance` of the :class:`ClassDef` node.
-
-        :returns: An :class:`Instance` of the :class:`ClassDef` node
-        """
+        """Get an :class:`Instance` of the :class:`ClassDef` node."""
         from astroid import objects  # pylint: disable=import-outside-toplevel
 
         try:
@@ -2828,8 +2615,6 @@ class ClassDef(
         If this class does not define explicitly a metaclass,
         then the first defined metaclass in ancestors will be used
         instead.
-
-        :returns: The metaclass of this class.
         """
         return self._find_metaclass(context=context)
 
@@ -3005,7 +2790,6 @@ class ClassDef(
         """Get the method resolution order, using C3 linearization.
 
         :returns: The list of ancestors, sorted by the mro.
-        :rtype: list(NodeNG)
         :raises DuplicateBasesError: Duplicate bases in the same class base
         :raises InconsistentMroError: A class' MRO is inconsistent
         """

@@ -57,12 +57,7 @@ class Statement(NodeNG):
     is_statement = True
     """Whether this node indicates a statement."""
 
-    def next_sibling(self):
-        """The next sibling statement node.
-
-        :returns: The next sibling statement node.
-        :rtype: NodeNG or None
-        """
+    def next_sibling(self) -> NodeNG | None:
         stmts = self.parent.child_sequence(self)
         index = stmts.index(self)
         try:
@@ -70,12 +65,7 @@ class Statement(NodeNG):
         except IndexError:
             return None
 
-    def previous_sibling(self):
-        """The previous sibling statement.
-
-        :returns: The previous sibling statement node.
-        :rtype: NodeNG or None
-        """
+    def previous_sibling(self) -> NodeNG | None:
         stmts = self.parent.child_sequence(self)
         if (index := stmts.index(self)) >= 1:
             return stmts[index - 1]

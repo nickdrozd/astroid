@@ -345,26 +345,10 @@ class BaseContainer(ParentAssignNode, Instance, metaclass=abc.ABCMeta):
         return node
 
     def itered(self):
-        """An iterator over the elements this node contains.
-
-        :returns: The contents of this node.
-        :rtype: iterable(NodeNG)
-        """
         return self.elts
 
     def bool_value(self, context: InferenceContext | None = None) -> bool:
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-        """
         return bool(self.elts)
-
-    @abc.abstractmethod
-    def pytype(self) -> str:
-        """Get the name of the type that this node represents.
-
-        :returns: The name of the type.
-        """
 
     def get_children(self):
         yield from self.elts
@@ -1066,25 +1050,16 @@ class Arguments(AssignTypeNode):  # pylint: disable=too-many-instance-attributes
 
         raise NoDefault(func=self.parent, name=argname)
 
-    def is_argument(self, name) -> bool:
-        """Check if the given name is defined in the arguments.
+    def is_argument(self, name: str) -> bool:
+        """Check if the given name is defined in the arguments."""
+        return (
+            name == self.vararg
+            or name == self.kwarg
+            or self.find_argname(name)[1] is not None
+        )
 
-        :param name: The name to check for.
-        :type name: str
-
-        :returns: Whether the given name is defined in the arguments,
-        """
-        if name == self.vararg:
-            return True
-        if name == self.kwarg:
-            return True
-        return self.find_argname(name)[1] is not None
-
-    def find_argname(self, argname, rec=DEPRECATED_ARGUMENT_DEFAULT):
+    def find_argname(self, argname: str, rec=DEPRECATED_ARGUMENT_DEFAULT):
         """Get the index and :class:`AssignName` node for given name.
-
-        :param argname: The name of the argument to search for.
-        :type argname: str
 
         :returns: The index and node for the argument.
         :rtype: tuple(str or None, AssignName or None)
@@ -1682,6 +1657,9 @@ class BoolOp(NodeNG):
     _astroid_fields = ("values",)
     _other_fields = ("op",)
 
+    values: list[NodeNG]
+    """The values being applied to the operator."""
+
     def __init__(
         self,
         op: str,
@@ -1692,26 +1670,8 @@ class BoolOp(NodeNG):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param op: The operator.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
         self.op: str = op
         """The operator."""
-
-        self.values: list[NodeNG] = []
-        """The values being applied to the operator."""
 
         super().__init__(
             lineno=lineno,
@@ -1722,10 +1682,6 @@ class BoolOp(NodeNG):
         )
 
     def postinit(self, values: list[NodeNG] | None = None) -> None:
-        """Do some setup after initialisation.
-
-        :param values: The values being applied to the operator.
-        """
         if values is not None:
             self.values = values
 
@@ -1975,7 +1931,8 @@ class CallSite:
         positional = self.positional_arguments[: len(funcnode.args.args)]
         vararg = self.positional_arguments[len(funcnode.args.args) :]
 
-        # preserving previous behavior, when vararg and kwarg were not included in find_argname results
+        # preserving previous behavior, when vararg and kwarg were not
+        # included in find_argname results
         argindex = (
             None
             if name in [funcnode.args.vararg, funcnode.args.kwarg]
@@ -2008,6 +1965,7 @@ class CallSite:
                 # is the first argument.
                 if boundnode is None and funcnode.type == "method" and positional:
                     return positional[0].infer(context=context)
+
                 if boundnode is None:
                     # XXX can do better ?
                     boundnode = funcnode.parent.frame()
@@ -2017,21 +1975,24 @@ class CallSite:
                     # of the metaclass through a class, as in
                     # `cls.metaclass_method`. In this case, the
                     # first argument is always the class.
-                    method_scope = funcnode.parent.scope()
-                    if method_scope is boundnode.metaclass(context=context):
+                    if funcnode.parent.scope() is boundnode.metaclass(context=context):
                         return iter((boundnode,))
 
                 if funcnode.type == "method":
                     if not isinstance(boundnode, Instance):
                         boundnode = boundnode.instantiate_class()
+
                     return iter((boundnode,))
+
                 if funcnode.type == "classmethod":
                     return iter((boundnode,))
+
             # if we have a method, extract one position
             # from the index, so we'll take in account
             # the extra parameter represented by `self` or `cls`
             if funcnode.type in {"method", "classmethod"} and boundnode:
                 argindex -= 1
+
             # 2. search arg index
             try:
                 return self.positional_arguments[argindex].infer(context)
@@ -2053,6 +2014,7 @@ class CallSite:
                     arg=name,
                     context=context,
                 )
+
             kwarg = Dict(
                 lineno=funcnode.args.lineno,
                 col_offset=funcnode.args.col_offset,
@@ -2060,10 +2022,13 @@ class CallSite:
                 end_lineno=funcnode.args.end_lineno,
                 end_col_offset=funcnode.args.end_col_offset,
             )
+
             kwarg.postinit(
                 [(const_factory(key), value) for key, value in kwargs.items()]
             )
+
             return iter((kwarg,))
+
         if funcnode.args.vararg == name:
             # It wants all the args that were passed into
             # the call site.
@@ -2112,7 +2077,7 @@ class Call(NodeNG):
     <Call l.1 at 0x7f23b2e71eb8>
     """
 
-    _astroid_fields = ("func", "args", "keywords")
+    _astroid_fields = "func", "args", "keywords"
 
     func: NodeNG
     """What is being called."""
@@ -2216,7 +2181,7 @@ class Compare(NodeNG):
     [('<=', <Name.b l.1 at 0x7f23b2e9e2b0>), ('<=', <Name.c l.1 at 0x7f23b2e9e390>)]
     """
 
-    _astroid_fields = ("left", "ops")
+    _astroid_fields = "left", "ops"
 
     left: NodeNG
     """The value at the left being applied to a comparison operator."""
@@ -2229,24 +2194,11 @@ class Compare(NodeNG):
         self.ops = ops
 
     def get_children(self):
-        """Get the child nodes below this node.
-
-        Overridden to handle the tuple fields and skip returning the operator
-        strings.
-
-        :returns: The children.
-        :rtype: iterable(NodeNG)
-        """
         yield self.left
         for _, comparator in self.ops:
             yield comparator  # we don't want the 'op'
 
     def last_child(self):
-        """An optimized version of list(get_children())[-1]
-
-        :returns: The last child.
-        :rtype: NodeNG
-        """
         # XXX maybe if self.ops:
         return self.ops[-1][1]
         # return self.left
@@ -2397,11 +2349,6 @@ class Comprehension(NodeNG):
         )
 
     def assign_type(self):
-        """The type of assignment that this node performs.
-
-        :returns: The assignment type.
-        :rtype: NodeNG
-        """
         return self
 
     def _get_filtered_stmts(self, lookup_node, node, stmts, mystmt: Statement | None):
@@ -2440,7 +2387,7 @@ class Const(NoChildrenNode, Instance):
     <Const.bytes l.1 at 0x7f23b2e35a20>]
     """
 
-    _other_fields = ("value", "kind")
+    _other_fields = "value", "kind"
 
     def __init__(
         self,
@@ -2453,23 +2400,6 @@ class Const(NoChildrenNode, Instance):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param value: The value that the constant represents.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param kind: The string prefix. "u" for u-prefixed strings and ``None`` otherwise. Python 3.8+ only.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
         if getattr(value, "__name__", None) == "__doc__":
             warnings.warn(  # pragma: no cover
                 "You have most likely called a __doc__ field of some object "
@@ -2594,26 +2524,15 @@ class Const(NoChildrenNode, Instance):
         return False
 
     def itered(self):
-        """An iterator over the elements this node contains.
+        if not isinstance(value := self.value, str):
+            raise TypeError(f"Cannot iterate over type {type(value)!r}")
 
-        :returns: The contents of this node.
-        :rtype: iterable(Const)
-
-        :raises TypeError: If this node does not represent something that is iterable.
-        """
-        if isinstance(self.value, str):
-            return [const_factory(elem) for elem in self.value]
-        raise TypeError(f"Cannot iterate over type {type(self.value)!r}")
+        return [const_factory(elem) for elem in value]
 
     def pytype(self) -> str:
         return self._proxied.qname()
 
     def bool_value(self, context: InferenceContext | None = None):
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-        :rtype: bool
-        """
         return bool(self.value)
 
     def _infer(
@@ -2659,11 +2578,6 @@ class Decorators(NodeNG):
         self.nodes = nodes
 
     def scope(self) -> LocalsDictNodeNG:
-        """The first parent node defining a new scope.
-        These can be Module, FunctionDef, ClassDef, Lambda, or GeneratorExp nodes.
-
-        :returns: The first parent scope node.
-        """
         # skip the function node to go directly to the upper level scope
         if not self.parent:
             raise ParentMissingError(target=self)
@@ -2733,25 +2647,8 @@ class Delete(AssignTypeNode, Statement):
 
     _astroid_fields = ("targets",)
 
-    def __init__(
-        self,
-        lineno: int,
-        col_offset: int,
-        parent: NodeNG,
-        *,
-        end_lineno: int | None,
-        end_col_offset: int | None,
-    ) -> None:
-        self.targets: list[NodeNG] = []
-        """What is being deleted."""
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    targets: list[NodeNG]
+    """What is being deleted."""
 
     def postinit(self, targets: list[NodeNG]) -> None:
         self.targets = targets
@@ -2773,6 +2670,9 @@ class Dict(NodeNG, Instance):
 
     _astroid_fields = ("items",)
 
+    items: list[tuple[InferenceResult, InferenceResult]]
+    """The key-value pairs contained in the dictionary."""
+
     def __init__(
         self,
         lineno: int | None,
@@ -2782,8 +2682,7 @@ class Dict(NodeNG, Instance):
         end_lineno: int | None,
         end_col_offset: int | None,
     ) -> None:
-        self.items: list[tuple[InferenceResult, InferenceResult]] = []
-        """The key-value pairs contained in the dictionary."""
+        self.items = []
 
         super().__init__(
             lineno=lineno,
@@ -2794,10 +2693,6 @@ class Dict(NodeNG, Instance):
         )
 
     def postinit(self, items: list[tuple[InferenceResult, InferenceResult]]) -> None:
-        """Do some setup after initialisation.
-
-        :param items: The key-value pairs contained in the dictionary.
-        """
         self.items = items
 
     def infer_unary_op(self, op):
@@ -2807,48 +2702,21 @@ class Dict(NodeNG, Instance):
         return "builtins.dict"
 
     def get_children(self):
-        """Get the key and value nodes below this node.
-
-        Children are returned in the order that they are defined in the source
-        code, key first then the value.
-
-        :returns: The children.
-        :rtype: iterable(NodeNG)
-        """
         for key, value in self.items:
             yield key
             yield value
 
     def last_child(self):
-        """An optimized version of list(get_children())[-1]
-
-        :returns: The last child, or None if no children exist.
-        :rtype: NodeNG or None
-        """
         if self.items:
             return self.items[-1][1]
         return None
 
     def itered(self):
-        """An iterator over the keys this node contains.
-
-        :returns: The keys of this node.
-        :rtype: iterable(NodeNG)
-        """
         return [key for (key, _) in self.items]
 
     def getitem(
         self, index: Const | Slice, context: InferenceContext | None = None
     ) -> NodeNG:
-        """Get an item from this node.
-
-        :param index: The node to use as a subscript index.
-
-        :raises AstroidTypeError: When the given index cannot be used as a
-            subscript index, or if this node is not subscriptable.
-        :raises AstroidIndexError: If the given index does not exist in the
-            dictionary.
-        """
         for key, value in self.items:
             # TODO(cpopa): no support for overriding yet, {1:2, **{1: 3}}.
             if isinstance(key, DictUnpack):
@@ -2871,11 +2739,6 @@ class Dict(NodeNG, Instance):
         raise AstroidIndexError(index)
 
     def bool_value(self, context: InferenceContext | None = None):
-        """Determine the boolean value of this node.
-
-        :returns: The boolean value of this node.
-        :rtype: bool
-        """
         return bool(self.items)
 
     def _infer(
@@ -3262,7 +3125,28 @@ class ImportFrom(ImportNode):
     <ImportFrom l.1 at 0x7f23b2e415c0>
     """
 
-    _other_fields = ("modname", "names", "level")
+    _other_fields = "modname", "names", "level"
+
+    modname: str | None
+    """The module that is being imported from.
+
+    This is ``None`` for relative imports.
+    """
+
+    names: list[tuple[str, str | None]]
+    """What is being imported from the module.
+
+    Each entry is a :class:`tuple` of the name being imported,
+    and the alias that the name is assigned to (if any).
+    """
+
+    # TODO When is 'level' None?
+    level: int | None
+    """The level of relative import.
+
+    Essentially this is the number of dots in the import.
+    This is always 0 for absolute imports.
+    """
 
     def __init__(
         self,
@@ -3276,45 +3160,9 @@ class ImportFrom(ImportNode):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param fromname: The module that is being imported from.
-
-        :param names: What is being imported from the module.
-
-        :param level: The level of relative import.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.modname: str | None = fromname  # can be None
-        """The module that is being imported from.
-
-        This is ``None`` for relative imports.
-        """
-
-        self.names: list[tuple[str, str | None]] = names
-        """What is being imported from the module.
-
-        Each entry is a :class:`tuple` of the name being imported,
-        and the alias that the name is assigned to (if any).
-        """
-
-        # TODO When is 'level' None?
-        self.level: int | None = level  # can be None
-        """The level of relative import.
-
-        Essentially this is the number of dots in the import.
-        This is always 0 for absolute imports.
-        """
+        self.modname = fromname
+        self.names = names
+        self.level = level
 
         super().__init__(
             lineno=lineno,
@@ -3412,6 +3260,9 @@ class Global(NoChildrenNode, Statement):
 
     _other_fields = ("names",)
 
+    names: list[str]
+    """The names being declared as global."""
+
     def __init__(
         self,
         names: list[str],
@@ -3422,23 +3273,7 @@ class Global(NoChildrenNode, Statement):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param names: The names being declared as global.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.names: list[str] = names
-        """The names being declared as global."""
+        self.names = names
 
         super().__init__(
             lineno=lineno,
@@ -3495,20 +3330,9 @@ class If(MultiLineWithElseBlockNode, Statement):
 
     @cached_property
     def blockstart_tolineno(self):
-        """The line on which the beginning of this block ends.
-
-        :type: int
-        """
         return self.test.tolineno
 
     def block_range(self, lineno: int) -> tuple[int, int]:
-        """Get a range from the given line number to where this node ends.
-
-        :param lineno: The line number to start the range at.
-
-        :returns: The range of line numbers that this node belongs to,
-            starting at the given line number.
-        """
         if lineno == self.body[0].fromlineno:
             return lineno, lineno
         if lineno <= self.body[-1].tolineno:
@@ -3616,6 +3440,13 @@ class Import(ImportNode):
 
     _other_fields = ("names",)
 
+    names: list[tuple[str, str | None]]
+    """The names being imported.
+
+    Each entry is a :class:`tuple` of the name being imported,
+    and the alias that the name is assigned to (if any).
+    """
+
     def __init__(
         self,
         names: list[tuple[str, str | None]],
@@ -3626,27 +3457,7 @@ class Import(ImportNode):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param names: The names being imported.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.names: list[tuple[str, str | None]] = names
-        """The names being imported.
-
-        Each entry is a :class:`tuple` of the name being imported,
-        and the alias that the name is assigned to (if any).
-        """
+        self.names = names
 
         super().__init__(
             lineno=lineno,
@@ -3689,6 +3500,9 @@ class Keyword(NodeNG):
     _astroid_fields = ("value",)
     _other_fields = ("arg",)
 
+    arg: str | None
+    """The argument being assigned to."""
+
     value: NodeNG
     """The value being assigned to the keyword argument."""
 
@@ -3703,7 +3517,6 @@ class Keyword(NodeNG):
         end_col_offset: int | None,
     ) -> None:
         self.arg = arg
-        """The argument being assigned to."""
 
         super().__init__(
             lineno=lineno,
@@ -3731,6 +3544,9 @@ class List(BaseContainer):
 
     _other_fields = ("ctx",)
 
+    ctx: Context | None
+    """Whether the list is assigned to or loaded from."""
+
     def __init__(
         self,
         ctx: Context | None = None,
@@ -3741,23 +3557,7 @@ class List(BaseContainer):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param ctx: Whether the list is assigned to or loaded from.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.ctx: Context | None = ctx
-        """Whether the list is assigned to or loaded from."""
+        self.ctx = ctx
 
         super().__init__(
             lineno=lineno,
@@ -3827,6 +3627,9 @@ class Nonlocal(NoChildrenNode, Statement):
 
     _other_fields = ("names",)
 
+    names: list[str]
+    """The names being declared as not local."""
+
     def __init__(
         self,
         names: list[str],
@@ -3837,23 +3640,7 @@ class Nonlocal(NoChildrenNode, Statement):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param names: The names being declared as not local.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.names: list[str] = names
-        """The names being declared as not local."""
+        self.names = names
 
         super().__init__(
             lineno=lineno,
@@ -3879,23 +3666,6 @@ class ParamSpec(AssignTypeNode):
     _astroid_fields = ("name",)
 
     name: AssignName
-
-    def __init__(
-        self,
-        lineno: int,
-        col_offset: int,
-        parent: NodeNG,
-        *,
-        end_lineno: int,
-        end_col_offset: int,
-    ) -> None:
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
 
     def postinit(self, *, name: AssignName) -> None:
         self.name = name
@@ -3951,10 +3721,6 @@ class Raise(Statement):
         self.cause = cause
 
     def raises_not_implemented(self) -> bool:
-        """Check if this node raises a :class:`NotImplementedError`.
-
-        :returns: Whether this node raises a :class:`NotImplementedError`.
-        """
         if not self.exc:
             return False
         return any(
@@ -4530,16 +4296,6 @@ class Try(MultiLineWithElseBlockNode, Statement):
         orelse: list[NodeNG],
         finalbody: list[NodeNG],
     ) -> None:
-        """Do some setup after initialisation.
-
-        :param body: The contents of the block to catch exceptions from.
-
-        :param handlers: The exception handlers.
-
-        :param orelse: The contents of the ``else`` block.
-
-        :param finalbody: The contents of the ``finally`` block.
-        """
         self.body = body
         self.handlers = handlers
         self.orelse = orelse
@@ -4582,46 +4338,20 @@ class Try(MultiLineWithElseBlockNode, Statement):
 class TryStar(MultiLineWithElseBlockNode, Statement):
     """Class representing an :class:`ast.TryStar` node."""
 
-    _astroid_fields = ("body", "handlers", "orelse", "finalbody")
-    _multi_line_block_fields = ("body", "handlers", "orelse", "finalbody")
+    _astroid_fields = "body", "handlers", "orelse", "finalbody"
+    _multi_line_block_fields = "body", "handlers", "orelse", "finalbody"
 
-    def __init__(
-        self,
-        *,
-        lineno: int | None = None,
-        col_offset: int | None = None,
-        end_lineno: int | None = None,
-        end_col_offset: int | None = None,
-        parent: NodeNG | None = None,
-    ) -> None:
-        """
-        :param lineno: The line that this node appears on in the source code.
-        :param col_offset: The column that this node appears on in the
-            source code.
-        :param parent: The parent node in the syntax tree.
-        :param end_lineno: The last line this node appears on in the source code.
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.body: list[NodeNG] = []
-        """The contents of the block to catch exceptions from."""
+    body: list[NodeNG]
+    """The contents of the block to catch exceptions from."""
 
-        self.handlers: list[ExceptHandler] = []
-        """The exception handlers."""
+    handlers: list[ExceptHandler]
+    """The exception handlers."""
 
-        self.orelse: list[NodeNG] = []
-        """The contents of the ``else`` block."""
+    orelse: list[NodeNG]
+    """The contents of the ``else`` block."""
 
-        self.finalbody: list[NodeNG] = []
-        """The contents of the ``finally`` block."""
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    finalbody: list[NodeNG]
+    """The contents of the ``finally`` block."""
 
     def postinit(
         self,
@@ -4631,20 +4361,10 @@ class TryStar(MultiLineWithElseBlockNode, Statement):
         orelse: list[NodeNG] | None = None,
         finalbody: list[NodeNG] | None = None,
     ) -> None:
-        """Do some setup after initialisation.
-        :param body: The contents of the block to catch exceptions from.
-        :param handlers: The exception handlers.
-        :param orelse: The contents of the ``else`` block.
-        :param finalbody: The contents of the ``finally`` block.
-        """
-        if body:
-            self.body = body
-        if handlers:
-            self.handlers = handlers
-        if orelse:
-            self.orelse = orelse
-        if finalbody:
-            self.finalbody = finalbody
+        self.body = body or []
+        self.handlers = handlers or []
+        self.orelse = orelse or []
+        self.finalbody = finalbody or []
 
     def _infer_name(self, frame, name):
         return name
@@ -4691,6 +4411,9 @@ class Tuple(BaseContainer):
 
     _other_fields = ("ctx",)
 
+    ctx: Context | None
+    """Whether the tuple is assigned to or loaded from."""
+
     def __init__(
         self,
         ctx: Context | None = None,
@@ -4701,23 +4424,7 @@ class Tuple(BaseContainer):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        """
-        :param ctx: Whether the tuple is assigned to or loaded from.
-
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.ctx: Context | None = ctx
-        """Whether the tuple is assigned to or loaded from."""
+        self.ctx: ctx
 
         super().__init__(
             lineno=lineno,
@@ -4763,11 +4470,6 @@ class Tuple(BaseContainer):
         return "builtins.tuple"
 
     def getitem(self, index, context: InferenceContext | None = None):
-        """Get an item from this node.
-
-        :param index: The node to use as a subscript index.
-        :type index: Const or Slice
-        """
         return _container_getitem(self, self.elts, index, context=context)
 
 
@@ -4780,28 +4482,11 @@ class TypeAlias(AssignTypeNode, Statement):
     <TypeAlias l.1 at 0x7f23b2e4e198>
     """
 
-    _astroid_fields = ("name", "type_params", "value")
+    _astroid_fields = "name", "type_params", "value"
 
     name: AssignName
     type_params: list[TypeVar | ParamSpec | TypeVarTuple]
     value: NodeNG
-
-    def __init__(
-        self,
-        lineno: int,
-        col_offset: int,
-        parent: NodeNG,
-        *,
-        end_lineno: int,
-        end_col_offset: int,
-    ) -> None:
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
 
     def postinit(
         self,
@@ -4831,27 +4516,10 @@ class TypeVar(AssignTypeNode):
     <TypeVar l.1 at 0x7f23b2e4e198>
     """
 
-    _astroid_fields = ("name", "bound")
+    _astroid_fields = "name", "bound"
 
     name: AssignName
     bound: NodeNG | None
-
-    def __init__(
-        self,
-        lineno: int,
-        col_offset: int,
-        parent: NodeNG,
-        *,
-        end_lineno: int,
-        end_col_offset: int,
-    ) -> None:
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
 
     def postinit(self, *, name: AssignName, bound: NodeNG | None) -> None:
         self.name = name
@@ -4884,23 +4552,6 @@ class TypeVarTuple(AssignTypeNode):
     _astroid_fields = ("name",)
 
     name: AssignName
-
-    def __init__(
-        self,
-        lineno: int,
-        col_offset: int,
-        parent: NodeNG,
-        *,
-        end_lineno: int,
-        end_col_offset: int,
-    ) -> None:
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
 
     def postinit(self, *, name: AssignName) -> None:
         self.name = name
@@ -5085,8 +4736,8 @@ class While(MultiLineWithElseBlockNode, Statement):
     <While l.2 at 0x7f23b2e4e390>
     """
 
-    _astroid_fields = ("test", "body", "orelse")
-    _multi_line_block_fields = ("body", "orelse")
+    _astroid_fields = "test", "body", "orelse"
+    _multi_line_block_fields = "body", "orelse"
 
     test: NodeNG
     """The condition that the loop tests."""
@@ -5109,20 +4760,9 @@ class While(MultiLineWithElseBlockNode, Statement):
 
     @cached_property
     def blockstart_tolineno(self):
-        """The line on which the beginning of this block ends.
-
-        :type: int
-        """
         return self.test.tolineno
 
     def block_range(self, lineno: int) -> tuple[int, int]:
-        """Get a range from the given line number to where this node ends.
-
-        :param lineno: The line number to start the range at.
-
-        :returns: The range of line numbers that this node belongs to,
-            starting at the given line number.
-        """
         return self._elsed_block_range(lineno, self.orelse)
 
     def get_children(self):
@@ -5158,48 +4798,18 @@ class With(
     <With l.2 at 0x7f23b2e4e710>
     """
 
-    _astroid_fields = ("items", "body")
+    _astroid_fields = "items", "body"
     _other_other_fields = ("type_annotation",)
     _multi_line_block_fields = ("body",)
 
-    def __init__(
-        self,
-        lineno: int | None = None,
-        col_offset: int | None = None,
-        parent: NodeNG | None = None,
-        *,
-        end_lineno: int | None = None,
-        end_col_offset: int | None = None,
-    ) -> None:
-        """
-        :param lineno: The line that this node appears on in the source code.
+    items: list[tuple[NodeNG, NodeNG | None]]
+    """The pairs of context managers and the names they are assigned to."""
 
-        :param col_offset: The column that this node appears on in the
-            source code.
+    body: list[NodeNG]
+    """The contents of the ``with`` block."""
 
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.items: list[tuple[NodeNG, NodeNG | None]] = []
-        """The pairs of context managers and the names they are assigned to."""
-
-        self.body: list[NodeNG] = []
-        """The contents of the ``with`` block."""
-
-        self.type_annotation: NodeNG | None = None  # can be None
-        """If present, this will contain the type annotation passed by a type comment"""
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    type_annotation: NodeNG | None
+    """If present, this will contain the type annotation passed by a type comment"""
 
     def postinit(
         self,
@@ -5207,17 +4817,10 @@ class With(
         body: list[NodeNG] | None = None,
         type_annotation: NodeNG | None = None,
     ) -> None:
-        """Do some setup after initialisation.
+        self.items = items or []
 
-        :param items: The pairs of context managers and the names
-            they are assigned to.
+        self.body = body or []
 
-        :param body: The contents of the ``with`` block.
-        """
-        if items is not None:
-            self.items = items
-        if body is not None:
-            self.body = body
         self.type_annotation = type_annotation
 
     @raise_if_nothing_inferred
@@ -5303,18 +4906,9 @@ class With(
 
     @cached_property
     def blockstart_tolineno(self):
-        """The line on which the beginning of this block ends.
-
-        :type: int
-        """
         return self.items[-1][0].tolineno
 
     def get_children(self):
-        """Get the child nodes below this node.
-
-        :returns: The children.
-        :rtype: iterable(NodeNG)
-        """
         for expr, var in self.items:
             yield expr
             if var:
@@ -5418,52 +5012,14 @@ class FormattedValue(NodeNG):
     _astroid_fields = ("value", "format_spec")
     _other_fields = ("conversion",)
 
-    def __init__(
-        self,
-        lineno: int | None = None,
-        col_offset: int | None = None,
-        parent: NodeNG | None = None,
-        *,
-        end_lineno: int | None = None,
-        end_col_offset: int | None = None,
-    ) -> None:
-        """
-        :param lineno: The line that this node appears on in the source code.
+    value: NodeNG
+    """The value to be formatted into the string."""
 
-        :param col_offset: The column that this node appears on in the
-            source code.
+    conversion: int
+    """The type of formatting to be applied to the value."""
 
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.value: NodeNG
-        """The value to be formatted into the string."""
-
-        self.conversion: int
-        """The type of formatting to be applied to the value.
-
-        .. seealso::
-            :class:`ast.FormattedValue`
-        """
-
-        self.format_spec: JoinedStr | None = None
-        """The formatting to be applied to the value.
-
-        .. seealso::
-            :class:`ast.FormattedValue`
-        """
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    format_spec: JoinedStr | None = None
+    """The formatting to be applied to the value."""
 
     def postinit(
         self,
@@ -5472,15 +5028,6 @@ class FormattedValue(NodeNG):
         conversion: int,
         format_spec: JoinedStr | None = None,
     ) -> None:
-        """Do some setup after initialisation.
-
-        :param value: The value to be formatted into the string.
-
-        :param conversion: The type of formatting to be applied to the value.
-
-        :param format_spec: The formatting to be applied to the value.
-        :type format_spec: JoinedStr or None
-        """
         self.value = value
         self.conversion = conversion
         self.format_spec = format_spec
@@ -5537,51 +5084,10 @@ class JoinedStr(NodeNG):
 
     _astroid_fields = ("values",)
 
-    def __init__(
-        self,
-        lineno: int | None = None,
-        col_offset: int | None = None,
-        parent: NodeNG | None = None,
-        *,
-        end_lineno: int | None = None,
-        end_col_offset: int | None = None,
-    ) -> None:
-        """
-        :param lineno: The line that this node appears on in the source code.
-
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.values: list[NodeNG] = []
-        """The string expressions to be joined.
-
-        :type: list(FormattedValue or Const)
-        """
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    values: list[NodeNG]
 
     def postinit(self, values: list[NodeNG] | None = None) -> None:
-        """Do some setup after initialisation.
-
-        :param value: The string expressions to be joined.
-
-        :type: list(FormattedValue or Const)
-        """
-        if values is not None:
-            self.values = values
+        self.values = values or []
 
     def get_children(self):
         yield from self.values
@@ -5627,51 +5133,19 @@ class NamedExpr(AssignTypeNode):
     <NamedExpr l.1 at 0x7f23b2e4ed30>
     """
 
-    _astroid_fields = ("target", "value")
+    _astroid_fields = "target", "value"
 
     optional_assign = True
     """Whether this node optionally assigns a variable.
 
     Since NamedExpr are not always called they do not always assign."""
 
-    def __init__(
-        self,
-        lineno: int | None = None,
-        col_offset: int | None = None,
-        parent: NodeNG | None = None,
-        *,
-        end_lineno: int | None = None,
-        end_col_offset: int | None = None,
-    ) -> None:
-        """
-        :param lineno: The line that this node appears on in the source code.
+    target: NodeNG
+    """The assignment target
+    """
 
-        :param col_offset: The column that this node appears on in the
-            source code.
-
-        :param parent: The parent node in the syntax tree.
-
-        :param end_lineno: The last line this node appears on in the source code.
-
-        :param end_col_offset: The end column this node appears on in the
-            source code. Note: This is after the last symbol.
-        """
-        self.target: NodeNG
-        """The assignment target
-
-        :type: Name
-        """
-
-        self.value: NodeNG
-        """The value that gets assigned in the expression"""
-
-        super().__init__(
-            lineno=lineno,
-            col_offset=col_offset,
-            end_lineno=end_lineno,
-            end_col_offset=end_col_offset,
-            parent=parent,
-        )
+    value: NodeNG
+    """The value that gets assigned in the expression"""
 
     def postinit(self, target: NodeNG, value: NodeNG) -> None:
         self.target = target
@@ -5696,13 +5170,6 @@ class NamedExpr(AssignTypeNode):
         yield from self.value.infer(context=context)
 
     def frame(self) -> FunctionDef | Module | ClassDef | Lambda:
-        """The first parent frame node.
-
-        A frame node is a :class:`Module`, :class:`FunctionDef`,
-        or :class:`ClassDef`.
-
-        :returns: The first parent frame node.
-        """
         if not self.parent:
             raise ParentMissingError(target=self)
 
@@ -5717,11 +5184,6 @@ class NamedExpr(AssignTypeNode):
         return self.parent.frame()
 
     def scope(self) -> LocalsDictNodeNG:
-        """The first parent node defining a new scope.
-        These can be Module, FunctionDef, ClassDef, Lambda, or GeneratorExp nodes.
-
-        :returns: The first parent scope node.
-        """
         if not self.parent:
             raise ParentMissingError(target=self)
 
@@ -5835,8 +5297,11 @@ class Match(Statement, MultiLineBlockNode):
     <Match l.2 at 0x10c24e170>
     """
 
-    _astroid_fields = ("subject", "cases")
+    _astroid_fields = "subject", "cases"
     _multi_line_block_fields = ("cases",)
+
+    subject: NodeNG
+    cases: list[MatchCase]
 
     def __init__(
         self,
@@ -5847,8 +5312,6 @@ class Match(Statement, MultiLineBlockNode):
         end_lineno: int | None = None,
         end_col_offset: int | None = None,
     ) -> None:
-        self.subject: NodeNG
-        self.cases: list[MatchCase]
         super().__init__(
             lineno=lineno,
             col_offset=col_offset,
@@ -5884,18 +5347,14 @@ class MatchCase(MultiLineBlockNode):
     <MatchCase l.3 at 0x10c24e590>
     """
 
-    _astroid_fields = ("pattern", "guard", "body")
+    _astroid_fields = "pattern", "guard", "body"
     _multi_line_block_fields = ("body",)
 
-    lineno: None
-    col_offset: None
-    end_lineno: None
-    end_col_offset: None
+    pattern: Pattern
+    guard: NodeNG | None
+    body: list[NodeNG]
 
     def __init__(self, *, parent: NodeNG | None = None) -> None:
-        self.pattern: Pattern
-        self.guard: NodeNG | None
-        self.body: list[NodeNG]
         super().__init__(
             parent=parent,
             lineno=None,
