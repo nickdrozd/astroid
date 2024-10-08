@@ -591,9 +591,6 @@ class Name(LookupMixIn, NoChildrenNode):
     def _get_name_nodes(self):
         yield self
 
-        for child_node in self.get_children():
-            yield from child_node._get_name_nodes()
-
     @raise_if_nothing_inferred
     @path_wrapper
     def _infer(
